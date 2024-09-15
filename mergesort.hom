@@ -1,0 +1,128 @@
+dis List[T] {
+    Nil,
+    Cons(x: T, xs: List[T])
+}
+
+dis Pair[T, U] {
+    Pair(fst: T, snd: U)
+}
+
+dis Nat {
+    Zero,
+    Succ(n: Nat)
+}
+
+dis Bool {
+    True,
+    False
+}
+
+fun less(a: Nat, b: Nat) -> Bool {
+    ret fit Pair::Pair a b {
+        Pair _ Zero => Bool::False,
+        Pair Zero _ => Bool::True,
+        _ => less a.n b.n
+    };
+}
+
+fun len(xs: List[T]) -> Nat {
+    ret fit xs {
+        Nil => Nat::Zero,
+        _ => Nat::Succ (len xs.xs)
+    };
+}
+
+fun toInt(n: Nat) -> Int {
+    ret fit n {
+        Zero => 0,
+        Succ Zero => 1,
+        Succ (Succ Zero) => 2,
+        Succ (Succ (Succ Zero)) => 3,
+        Succ (Succ (Succ (Succ Zero))) => 4,
+        Succ (Succ (Succ (Succ (Succ Zero)))) => 5,
+        Succ (Succ (Succ (Succ (Succ (Succ Zero))))) => 6,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))) => 7,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))) => 8,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) => 9,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))))) => 10,
+        _ => "duzo"
+    };
+}
+
+fun fmap[T, U](f: T -> U, xs: List[T]) -> List[U] {
+    ret fit xs {
+        Nil => List::Nil,
+        Cons _ _ => List::Cons (f xs.x) (fmap f xs.xs)
+    };
+}
+
+fun mapPair[T, U](f: T -> U, p: Pair[T, T]) -> Pair[U, U] {
+    ret Pair::Pair (f p.fst) (f p.snd);
+}
+
+fun listToInt(xs: List[Nat]) -> List[Int] {
+    ret fmap toInt xs;
+}
+
+fun half[T](xs: List[T]) -> Pair[List[T], List[T]] {
+    let rest = fit xs {
+        Nil => Pair::Pair List::Nil List::Nil,
+        Cons _ Nil => Pair::Pair xs List::Nil,
+        Cons _ (Cons _ _) => half xs.xs.xs
+    };
+    ret fit xs {
+        Cons _ (Cons _ _) => Pair::Pair (List::Cons xs.x rest.fst) (List::Cons xs.xs.x rest.snd),
+        _ => rest
+    };
+}
+
+fun merge[T](xs: List[T], ys: List[T]) -> List[T] {
+    ret fit Pair::Pair xs ys {
+        Pair Nil Nil => List::Nil,
+        Pair Nil _ => ys,
+        Pair _ Nil => xs,
+        Pair _ _ => fit less xs.x ys.x {
+            True => List::Cons xs.x (merge xs.xs ys),
+            False => List::Cons ys.x (merge xs ys.xs)
+        }
+    };
+}
+
+fun sort[T](xs: List[T]) -> List[T] {
+    let halves = half xs;
+    ret fit xs {
+        Nil => List::Nil,
+        Cons _ Nil => xs,
+        Cons _ _ => merge (sort halves.fst) (sort halves.snd)
+    };
+}
+
+fun main(a: Int) -> Int {
+    let zero = Nat::Zero;
+    let one = Nat::Succ zero;
+    let two = Nat::Succ one;
+    let three = Nat::Succ two;
+    let four = Nat::Succ three;
+    let five = Nat::Succ four;
+    let six = Nat::Succ five;
+    let seven = Nat::Succ six;
+    let eight = Nat::Succ seven;
+    let nine = Nat::Succ eight;
+    let ten = Nat::Succ nine;
+
+    let xs = List::Cons one 
+        (List::Cons five 
+        (List::Cons three 
+        (List::Cons seven 
+        (List::Cons three 
+        (List::Cons three 
+        (List::Cons nine 
+        (List::Cons three 
+        (List::Cons four 
+        (List::Cons three 
+        (List::Nil))))))))));
+    
+    ret listToInt (sort xs);
+}
+
+main 0

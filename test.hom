@@ -1,0 +1,6 @@
+fun len(xs: List[T]) -> Nat {
+    ret fit xs {
+        Nil => Nat::Zero,
+        _ => Nat::Succ (len xs.xs)
+    }
+}
