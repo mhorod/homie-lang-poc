@@ -1,0 +1,4 @@
+dis List[T] {
+    Nil,
+    Cons(x: T, y: List[T])
+}

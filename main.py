@@ -1,5 +1,5 @@
 from lex import lex
-from parse import parse
+from parsing.parse import parse
 from tree import *
 from tokens import Source
 
@@ -10,14 +10,14 @@ def print_tree(tree, indent=0):
     else:
         print("  " * indent, tree)
 
-with open("main.hom", "r") as f:
+with open("mergesort.hom", "r") as f:
     source = Source("main.hom", f.read())
 
 tokens = lex(source)
 print(tokens)
 program = parse(tokens)
 print(program)
-if not isinstance(program, list):
+if isinstance(program, Block):
     print("Result:")
     print_tree(program)
     program.exec(Context())

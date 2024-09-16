@@ -36,6 +36,7 @@ class EnumType:
     name: str
     generics: List[Type]
 
+
 @dataclass
 class TypePath:
     kind = ASTNodeKind.TypePath
@@ -43,8 +44,6 @@ class TypePath:
 
     def exec(self, context: Context):
         return Call(self, []).exec(context)
-
-
 
 
 @dataclass
@@ -84,6 +83,7 @@ class EnumBranch:
     name: str
     args: List[Arg]
 
+
 @dataclass
 class EnumNode:
     kind = ASTNodeKind.Enum
@@ -95,7 +95,6 @@ class EnumNode:
         print(f"Enum def: {self}")
         context.enums[self.name] = self
 
-        
     
 
 # Match
@@ -132,8 +131,6 @@ class FitBranch:
     left: Pattern | Value | None
     right: Expr
     
-    
-
 @dataclass
 class Fit:
     kind = ASTNodeKind.Fit
@@ -151,7 +148,6 @@ class Fit:
 
 
 # Expr
-
 type Expr = Block | Fit | Let | Return
 
 @dataclass
@@ -268,7 +264,6 @@ class Object:
         if children_str:
             children_str = f"({children_str})"
         return f"{self.branch.name}{children_str}"
-
 
 
 
