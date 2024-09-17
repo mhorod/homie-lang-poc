@@ -121,3 +121,17 @@ class FunBuilder:
 
     def build(self):
         return self.fun
+    
+
+class EnumPatternBuilder:
+    def __init__(self):
+        self.pattern = Pattern(None, None)
+
+    def name(self, name):
+        self.pattern.name = name
+
+    def args(self, args):
+        self.pattern.args = args
+
+    def build(self):
+        return self.pattern

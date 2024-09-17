@@ -13,49 +13,64 @@ def parse(tokens: List[Token]) -> ProgramType:
     return result.parsed
 
 def program_parser():
-    return sequence().then_parse(Repeat(item_parser())).then_drop(ExpectEof()).map(flatten).map(Block)
+    return (
+        sequence()
+            .then_parse(repeat(item_parser()))
+            .then_drop(ExpectEof())
+            .map(flatten)
+            .map(Block)
+    )
 
 def item_parser():
     return enum_parser() | function_parser() | expr_parser() | fail("item")
 
 def enum_parser():
-    branches_parser = braced(Interspersed(enum_branch_parser(), ExpectKind(SymbolKind.Comma)))
+    variants_parser = braced(interspersed_positive(enum_variant_parser(), kind(SymbolKind.Comma)))
     return (
-        BuilderParser(EnumNodeBuilder)
-            .then_drop(ExpectKind(KeywordKind.KwDis))
+        builder(EnumNodeBuilder)
+            .then_drop(kind(KeywordKind.KwDis))
             .commit()
             .then_parse(EnumNodeBuilder.name, kind(NameKind.EnumName).map(get_text))
             .then_parse(EnumNodeBuilder.generic_names, optional(generic_params_parser(), []))
-            .then_parse(EnumNodeBuilder.branches, branches_parser)
+            .then_parse(EnumNodeBuilder.branches, variants_parser)
     )
 
 def generic_params_parser():
     return bracketed(Interspersed(kind(NameKind.EnumName).map(get_text), kind(SymbolKind.Comma)))
 
-def enum_branch_parser():
+def enum_variant_parser():
     return (
         builder(EnumBranchBuilder)
-            .commit()
             .then_parse(EnumBranchBuilder.name, kind(NameKind.EnumName).map(get_text))
+            .commit()
             .then_parse(EnumBranchBuilder.args, optional(args_parser(), []))
     )
 
 def arg_parser():
     return (
         builder(ArgBuilder)
-            .commit()
             .then_parse(ArgBuilder.name, ExpectKind(NameKind.VarName).map(get_text))
+            .commit()
             .then_drop(kind(SymbolKind.Colon))
             .then_parse(ArgBuilder.type, type_parser())
     )
 
 def args_parser():
-    return parenthesized(Interspersed(arg_parser(), kind(SymbolKind.Comma)))
+    return parenthesized(interspersed(arg_parser(), kind(SymbolKind.Comma)))
 
 
 def type_parser():        
+    def make_function_type(args):
+        if len(args) == 1:
+            return args[0]
+        elif len(args) == 2:
+            return FunctionType(args[0], args[1])
+        else:
+            return FunctionType(args[0], make_function_type(args[1:]))
+
     def type_parser_impl(self):
         return Interspersed(enum_type_parser(self), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
+
     return Recursive(type_parser_impl)
 
 
@@ -68,16 +83,14 @@ def enum_type_parser(type_parser=type_parser()):
             .then_parse(EnumTypeBuilder.generics, optional(generic_args_parser, []))
     )
 
-
-def make_function_type(args):
-    if len(args) == 1:
-        return args[0]
-    elif len(args) == 2:
-        return FunctionType(args[0], args[1])
-    else:
-        return FunctionType(args[0], make_function_type(args[1:]))
-
 def function_parser():
+    return_type_parser = (
+        sequence()
+        .then_drop(kind(SymbolKind.Arrow))
+        .commit()
+        .then_parse(type_parser())
+        .map(extract)
+    )
     return (
         builder(FunBuilder)
             .then_drop(kind(KeywordKind.KwFun))
@@ -85,8 +98,7 @@ def function_parser():
             .then_parse(FunBuilder.name, kind(NameKind.VarName).map(get_text))
             .then_parse(FunBuilder.generics, optional(generic_params_parser(), []))
             .then_parse(FunBuilder.arguments, args_parser())
-            .then_drop(kind(SymbolKind.Arrow))
-            .then_parse(FunBuilder.ret, type_parser())
+            .then_parse(FunBuilder.ret, optional(return_type_parser, None))
             .then_parse(FunBuilder.body, block_parser(expr_parser()))
     )
 
@@ -164,18 +176,17 @@ def expr_term_parser(expr_parser):
         | fail("expression")
         )
 
-def pattern_term_parser(pattern_parser):
-    enum_name_pattern_parser = kind(NameKind.EnumName).map(get_text).map(lambda text: tree.Pattern(text, []))
-    return catchall_parser() | value_parser() | enum_name_pattern_parser | parenthesized(pattern_parser) | fail("pattern")
+def enum_pattern_parser(pattern_parser):
+    return (
+        builder(EnumPatternBuilder)
+            .then_parse(EnumPatternBuilder.name, kind(NameKind.EnumName).map(get_text))
+            .commit()
+            .then_parse(EnumPatternBuilder.args, repeat(pattern_parser))
+    )
 
 def pattern_parser():
-    def make_pattern(parts):
-        if len(parts) == 1:
-            return parts[0]
-        else:
-            return tree.Pattern(parts[0].name, parts[1:])
     def pattern_parser_impl(self):
-        return repeat_positive(pattern_term_parser(self)).map(make_pattern)
+        return enum_pattern_parser(self) | catchall_parser() | value_parser() | parenthesized(self) | fail("pattern")
 
     return Recursive(pattern_parser_impl)
 
@@ -206,4 +217,4 @@ def obj_path_parser():
     )
 
 def type_path_parser():
-    return Interspersed(enum_type_parser(), kind(SymbolKind.DoubleColon)).map(TypePath)
+    return interspersed_positive(enum_type_parser(), kind(SymbolKind.DoubleColon)).map(TypePath)

@@ -1,4 +1,6 @@
-dis List[T] {
-    Nil,
-    Cons(x: T, y: List[T])
+fun f(a: Nat) {}
+fun g() -> Nat {}
+fun h() {}
+
+dis Foo {
 }
