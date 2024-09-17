@@ -23,12 +23,20 @@ class ASTNodeKind(Enum):
     TypePath = auto()
     ObjPath = auto()
 
-type Type = EnumType | FunctionType
+type Type = EnumType | FunctionType | WildcardType
+
+@dataclass
+class WildcardType:
+    pass
 
 @dataclass
 class ProgramType:
     kind = ASTNodeKind.ProgramType
     items: list
+
+    def exec(self, context):
+        for item in self.items:
+            item.exec(context)
 
 @dataclass
 class EnumType:
@@ -44,6 +52,12 @@ class TypePath:
 
     def exec(self, context: Context):
         return Call(self, []).exec(context)
+
+@dataclass
+class EnumConstructor:
+    enum_name: str
+    generics: List[Type]
+    variant_name: str
 
 
 @dataclass
@@ -61,19 +75,49 @@ class ObjPath:
         for part in self.parts[1:]:
             obj = obj.children[part]
         return obj
-        
+
+@dataclass
+class Var:
+    name: str
+    def exec(self, context: Context):
+        print(f"Searching for object {self.name}")
+        if self.name in context.stack[-1]:
+            return context.stack[-1][self.name]
+        elif self.name in context.functions:
+            return context.functions[self.name]
+        else:
+            print(f"Cannot find name {self.name}")
+
+@dataclass
+class Member:
+    expr: Expr
+    member_name: str
+
+    def exec(self, context: Context):
+        return self.expr.exec(context).children[self.member_name]
 
 @dataclass
 class FunctionType:
     kind = ASTNodeKind.FunctionType
-    left: Type
-    right: Type
+    args: List[Type]
+    ret: Type
 
 @dataclass
 class Arg:
     kind = ASTNodeKind.Arg
     name: str
     type: Type
+
+class Associativity(Enum):
+    NONE = auto()
+    LEFT = auto()
+    RIGHT = auto()
+
+@dataclass
+class Operator:
+    kind: Any
+    precedence: int
+    associativity: Associativity
 
 
 # Enum
@@ -211,24 +255,29 @@ class Fun:
         context.functions[self.name] = self
         
 
+@dataclass
+class FunInstantiation:
+    name: str
+    generics: List[Type]
+
+    def exec(self, context: Context):
+        return context.functions[self.name]
 
 @dataclass
 class Call:
     kind = ASTNodeKind.Call
-    fun: ObjPath | TypePath
+    fun: ObjPath | EnumConstructor
     arguments: List[Expr]
 
     def exec(self, context: Context):
-        if isinstance(self.fun, ObjPath):
-            return self.exec_function_call(context)
-        elif isinstance(self.fun, TypePath):
+        if isinstance(self.fun, EnumConstructor):
             return self.exec_create_call(context)
         else:
-            raise Exception(f"Call to invalid object: {self.fun}")
+            return self.exec_function_call(context)
         
         
     def exec_function_call(self, context: Context):
-        print(f"Calling function: {self.fun}")
+        print(f"Calling function: {self.fun} {self.arguments}")
         frame = {}
         fun_def = self.fun.exec(context)
         for (arg_expr, arg_def) in zip(self.arguments, fun_def.arguments):
@@ -240,8 +289,8 @@ class Call:
         return result
 
     def exec_create_call(self, context: Context):
-        enum_def = context.enums[self.fun.parts[0].name]
-        branch_def = next(b for b in enum_def.branches if b.name == self.fun.parts[1].name)
+        enum_def = context.enums[self.fun.enum_name]
+        branch_def = next(b for b in enum_def.branches if b.name == self.fun.variant_name)
         children = {}
         for (arg_expr, arg_def) in zip(self.arguments, branch_def.args):
             children[arg_def.name] = arg_expr.exec(context)

@@ -38,6 +38,8 @@ class SymbolKind(TokenKind, Enum):
     Underscore = auto()
     DoubleColon = auto()
     Equals = auto()
+    Plus = auto()
+    Asterisk = auto()
 
 class WhitespaceKind(TokenKind, Enum):
     Whitespace = auto()

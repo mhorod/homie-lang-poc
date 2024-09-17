@@ -1,6 +1,6 @@
-section .data
-    heap: db qword 1
-    heap_end: db qword 1
+section .bss
+    heap: resq 1
+    heap_end: resq 1
 section .text
     global _start
     global _make_obj

@@ -17,7 +17,7 @@ tokens = lex(source)
 print(tokens)
 program = parse(tokens)
 print(program)
-if isinstance(program, Block):
+if isinstance(program, ProgramType):
     print("Result:")
     print_tree(program)
     program.exec(Context())

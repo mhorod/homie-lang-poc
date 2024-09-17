@@ -5,6 +5,7 @@ import tree
 from parsing.combinators import *
 from parsing.builders import *
 from parsing.helpers import *
+from parsing.expressions import *
 
 def parse(tokens: List[Token]) -> ProgramType:
     result =  program_parser().run(TokenCursor(tokens))
@@ -18,7 +19,7 @@ def program_parser():
             .then_parse(repeat(item_parser()))
             .then_drop(ExpectEof())
             .map(flatten)
-            .map(Block)
+            .map(ProgramType)
     )
 
 def item_parser():
@@ -63,24 +64,23 @@ def type_parser():
     def make_function_type(args):
         if len(args) == 1:
             return args[0]
-        elif len(args) == 2:
-            return FunctionType(args[0], args[1])
         else:
-            return FunctionType(args[0], make_function_type(args[1:]))
+            return FunctionType(args[:-1], args[:-1])
 
     def type_parser_impl(self):
-        return Interspersed(enum_type_parser(self), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
+        return interspersed(enum_constructor_parser(self) | enum_type_parser(self) | fail("enum type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
 
     return Recursive(type_parser_impl)
 
+def generic_args_parser(type_parser=type_parser()):
+    wildcard_parser = kind(SymbolKind.QuestionMark).replace(WildcardType())
+    return bracketed(Interspersed(wildcard_parser | type_parser, kind(SymbolKind.Comma)))
 
 def enum_type_parser(type_parser=type_parser()):
-    generic_args_parser = bracketed(Interspersed(type_parser, kind(SymbolKind.Comma)))
-
     return (
         builder(EnumTypeBuilder)
             .then_parse(EnumTypeBuilder.name, kind(NameKind.EnumName).map(get_text))
-            .then_parse(EnumTypeBuilder.generics, optional(generic_args_parser, []))
+            .then_parse(EnumTypeBuilder.generics, optional(generic_args_parser(type_parser), []))
     )
 
 def function_parser():
@@ -113,7 +113,7 @@ def fit_branch_parser(expr_parser):
     )
 
 def fit_parser(expr_parser):
-    branches_parser = braced(Interspersed(fit_branch_parser(expr_parser), kind(SymbolKind.Comma)))
+    branches_parser = braced(interspersed_positive(fit_branch_parser(expr_parser), kind(SymbolKind.Comma)))
     return (
         builder(FitBuilder)
             .then_drop(kind(KeywordKind.KwFit))
@@ -153,15 +153,17 @@ def block_parser(expr_parser):
     return braced(repeat(single_expr_parser)).map(flatten).map(Block)
 
 def expr_parser():
-    def make_expr(parts):
-        if len(parts) == 1:
-            return parts[0]
-        else:
-            return Call(parts[0], parts[1:])
     def expr_parser_impl(self):
-        return repeat_positive(expr_term_parser(self)).map(make_expr)
+        return repeat_positive(operator_parser() | expr_term_parser(self) | fail("expression or operator")).and_then(make_expr)
     return Recursive(expr_parser_impl)
 
+
+def operator_parser():
+    return (
+        kind(SymbolKind.Dot).replace(Operator(SymbolKind.Dot, 0, Associativity.LEFT))
+        | kind(SymbolKind.Plus).replace(Operator(SymbolKind.Plus, 3, Associativity.LEFT))
+        | kind(SymbolKind.Asterisk).replace(Operator(SymbolKind.Asterisk, 2, Associativity.LEFT))
+    )
 
 def expr_term_parser(expr_parser):
     return (
@@ -170,11 +172,21 @@ def expr_term_parser(expr_parser):
         | fit_parser(expr_parser)
         | let_parser(expr_parser)
         | parenthesized(expr_parser)
-        | value_parser()
-        | obj_path_parser()
-        | type_path_parser()
+        | fun_instantiation_parser()
+        | var_parser()
+        | enum_constructor_parser()
         | fail("expression")
         )
+
+def fun_instantiation_parser():
+    return (
+        builder(FunInstantiationBuilder)
+            .then_parse(FunInstantiationBuilder.name, kind(NameKind.VarName).map(get_text))
+            .then_parse(FunInstantiationBuilder.generics, generic_args_parser())
+    )
+
+def var_parser():
+    return kind(NameKind.VarName).map(get_text).map(Var)
 
 def enum_pattern_parser(pattern_parser):
     return (
@@ -203,21 +215,12 @@ def value_parser():
         | fail("value")
     )
 
-def obj_path_parser():
+def enum_constructor_parser(type_parser=type_parser()):
     return (
-        sequence()
-            .then_parse(kind(NameKind.VarName).map(get_text))
-            .then_parse(
-                Repeat(
-                    sequence()
-                    .then_drop(kind(SymbolKind.Dot))
-                    .commit()
-                    .then_parse(kind(NameKind.VarName).map(get_text))
-                ).map(flatten)
-            )
-            .map(flatten)
-            .map(ObjPath)
+        builder(EnumConstructorBuilder)
+            .then_parse(EnumConstructorBuilder.enum_name, kind(NameKind.EnumName).map(get_text))
+            .then_parse(EnumConstructorBuilder.generics, optional(generic_args_parser(type_parser), []))
+            .then_drop(kind(SymbolKind.DoubleColon))
+            .commit()
+            .then_parse(EnumConstructorBuilder.variant_name, kind(NameKind.EnumName).map(get_text))
     )
-
-def type_path_parser():
-    return interspersed_positive(enum_type_parser(), kind(SymbolKind.DoubleColon)).map(TypePath)

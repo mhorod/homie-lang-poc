@@ -135,3 +135,34 @@ class EnumPatternBuilder:
 
     def build(self):
         return self.pattern
+
+class FunInstantiationBuilder:
+    def __init__(self):
+        self.fun_inst = FunInstantiation(None, None)
+
+    def name(self, name):
+        self.fun_inst.name = name
+
+    def generics(self, generics):
+        self.fun_inst.generics = generics
+
+    def build(self):
+        return self.fun_inst
+    
+
+
+class EnumConstructorBuilder:
+    def __init__(self):
+        self.enum_constructor = EnumConstructor(None, None, None)
+
+    def enum_name(self, enum_name):
+        self.enum_constructor.enum_name = enum_name
+
+    def generics(self, generics):
+        self.enum_constructor.generics = generics
+    
+    def variant_name(self, variant_name):
+        self.enum_constructor.variant_name = variant_name
+
+    def build(self):
+        return self.enum_constructor

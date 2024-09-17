@@ -1,6 +1,24 @@
-fun f(a: Nat) {}
-fun g() -> Nat {}
-fun h() {}
-
-dis Foo {
+dis Foo[T, Self] {
+    A(self: Self, f: Self -> T)
 }
+
+dis FooImpl {
+    FooImpl(x: Int)
+}
+
+fun foo_f(foo: FooImpl) -> Int {
+    ret foo.x;
+}
+
+
+fun bar[T](foo: Foo[T, ?]) -> T {
+    ret foo.f foo.self;
+}
+
+fun main() {
+    let foo = Foo[Int, FooImpl]::A (FooImpl::FooImpl 42) foo_f;
+    ret bar[Int] foo;
+}
+
+
+main 0
