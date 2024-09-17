@@ -227,27 +227,39 @@ class OptionalParser[T](Parser):
 
 
 class Interspersed(Parser):
-    def __init__(self, parser, separator_parser):
+    def __init__(self, parser, separator_parser, minimum=0):
         self.parser = parser
         self.separator_parser = separator_parser
+        self.minimum = minimum
 
     def run(self, cursor, backtracking=False):
+        cursor_state = cursor.save()
         result = []
         while True:
+            if len(result) >= self.minimum:
+                backtracking = True
+
             item = self.parser.run(cursor, backtracking)
             if item.status == ResultStatus.Ok:
                 result.append(item.parsed)
             elif item.status == ResultStatus.Backtracked:
-                if len(result) == 0:
-                    return item
+                if len(result) < self.minimum:
+                    cursor.restore(cursor_state)
+                    return Result.Backtracked(item.errors)
                 else:
                     break
             else:
                 return item
-            backtracking = True
+
             separator = self.separator_parser.run(cursor, backtracking)
             if separator.status == ResultStatus.Backtracked:
-                break
+                if len(result) < self.minimum:
+                    cursor.restore(cursor_state)
+                    return Result.Backtracked(item.errors)
+                else:
+                    break
+            else:
+                print(separator)
         
         return Result.Ok(result)
 
@@ -268,20 +280,8 @@ class ExpectKind(Parser):
             line, column = found_token.location.line_and_column()
             return Result.Err(f"expected {self.kind}, found {found_token.kind} at line {line}, column {column}")
 
-
-class ExpectExact(Parser):
-    def __init__(self, value):
-        self.value = value
-
-    def run(self, cursor, backtracking=False):
-        if cursor.has() and cursor.peek() == self.value:
-            return Result.Ok(Maybe.Just(cursor.take()))
-        elif backtracking:
-            return Result.Backtracked() 
-        elif not cursor.has():
-            return Result.Err(f"expected {self.value}, found EOF")
-        else:
-            return Result.Err(f"expected {self.value}, found {cursor.peek()}")
+    def __repr__(self):
+        return f"Expect({self.kind})"
 
 
 class Recursive(Parser):
@@ -343,5 +343,9 @@ class Not(Parser):
         else:
             return Result.Ok(None)
 
-def exact(value):
-    return ExpectExact(value)
+def interspersed(value_parser, separator_parser):
+    return Interspersed(value_parser, separator_parser)
+
+
+def interspersed_positive(value_parser, separator_parser):
+    return Interspersed(value_parser, separator_parser, minimum=1)

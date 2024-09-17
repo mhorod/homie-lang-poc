@@ -10,7 +10,7 @@ def print_tree(tree, indent=0):
     else:
         print("  " * indent, tree)
 
-with open("mergesort.hom", "r") as f:
+with open("main.hom", "r") as f:
     source = Source("main.hom", f.read())
 
 tokens = lex(source)
