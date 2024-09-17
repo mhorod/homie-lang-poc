@@ -181,13 +181,16 @@ def enum_pattern_parser(pattern_parser):
         builder(EnumPatternBuilder)
             .then_parse(EnumPatternBuilder.name, kind(NameKind.EnumName).map(get_text))
             .commit()
-            .then_parse(EnumPatternBuilder.args, repeat(pattern_parser))
+            .then_parse(EnumPatternBuilder.args, repeat(enum_pattern_arg_parser(pattern_parser)))
     )
+
+def enum_pattern_arg_parser(pattern_parser):
+    variant_pattern_parser = kind(NameKind.EnumName).map(get_text).map(lambda name: tree.Pattern(name, []))
+    return variant_pattern_parser | catchall_parser() | value_parser() | parenthesized(pattern_parser) | fail("pattern")
 
 def pattern_parser():
     def pattern_parser_impl(self):
         return enum_pattern_parser(self) | catchall_parser() | value_parser() | parenthesized(self) | fail("pattern")
-
     return Recursive(pattern_parser_impl)
 
 def catchall_parser():
