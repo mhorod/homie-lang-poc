@@ -1,4 +1,5 @@
 section .data
+    global heap
     heap: db qword 1
     heap_end: db qword 1
 section .text
@@ -28,10 +29,11 @@ _start:
     mov [heap], rax
     mov [heap_end], rax
 
+    mov r12, 0x00ffffffffffffff
     call main
 
-    mov rdi, [rax]
     mov rax, SYS_EXIT
+    xor rdi, rdi
     syscall
 
 _make_obj:
@@ -46,9 +48,14 @@ _make_obj:
         sub rax, 8
         pop qword [rax]
         loop read_args
-    read_args_end:
-    sub rax, 8
-    mov [rax], rbx
     mov [heap_end], rax
+    read_args_end:
+    
+    ; make funny pointer (1 byte for object type, 7 bytes for position on heap)
+    sub rax, [heap]
+    neg rax
+    shl rbx, 56
+    or rax, rbx
+
     push rsi
     ret

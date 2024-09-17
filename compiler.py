@@ -80,9 +80,10 @@ class Pattern:
     def to_asm(self, ctx: AsmContext) -> str:
         match_start = ctx.unique_id("match")
         match_end = ctx.unique_id("match_end")
+        after_match_end = ctx.unique_id("after_match_end")
 
         inner_match = ""
-        gap = 8
+        gap = 0
 
         for child in self.children:
             if child is None:
@@ -97,15 +98,25 @@ class Pattern:
                 """
                 gap = 8
 
+        if inner_match == "":
+            return f"""
+                {get_variant_from_rax()}
+                cmp rax, {self.type_id}
+            """
+
         return f"""
             {match_start}:
-                push rax
-                mov rax, [rax]
+                mov rbx, rax
+                {get_variant_from_rax()}
                 cmp rax, {self.type_id}
-                jne {match_end}
+                jne {after_match_end}
+                mov rax, rbx
+                {get_addr_from_rax()}
+                push rax
                 {inner_match}
             {match_end}:
                 pop rax
+            {after_match_end}:
         """
 
 @dataclass
@@ -123,8 +134,7 @@ class Fun:
             mov rbp, rsp
             {'\n'.join(s.to_asm(ctx) for s in self.content)}
             {ctx.return_token}:
-            mov rsp, rbp
-            add rsp, {self.local_vars * 8}
+            lea rsp, [rbp + {self.local_vars * 8}]
             ret
         """
 
@@ -197,6 +207,7 @@ class Program:
             section .text
             global main
             extern _make_obj
+            extern heap
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
@@ -231,7 +242,8 @@ class Member:
         return f"""
             {self.obj.to_asm(ctx)}
             pop rax
-            add rax, {8 + 8 * self.i}
+            {get_addr_from_rax()}
+            add rax, {8 * self.i}
             push qword [rax]
         """
 
@@ -257,6 +269,17 @@ class Print:
             syscall
         """
 
+def get_addr_from_rax() -> str:
+    return f"""
+        and rax, r12
+        sub rax, [heap]
+        neg rax
+    """
+
+def get_variant_from_rax() -> str:
+    return f"""
+        shr rax, 56
+    """
 
 class AsmContext:
     _id: int
@@ -286,12 +309,10 @@ program = Program([
     ]),
 
     Fun("_print_Nat", 0, [
-        Print("("),
         Ignore(Fit(Arg(0), [
             FitBranch(Pattern(0, []), Call(FunName("_print_Nat_Zero"), [Arg(0)])),
             FitBranch(Pattern(1, [None]), Call(FunName("_print_Nat_Succ"), [Arg(0)])),
         ])),
-        Print(")"),
         Return(Create(0, []))
     ]),
 
@@ -316,12 +337,14 @@ program = Program([
         ]))
     ]),
 
-    Fun("main", 2, [
+    Fun("main", 3, [
         Let(0, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
         Let(1, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
-        Ignore(Call(FunName("_print_Nat"), [Call(FunName("pow"), [Var(0), Var(1)])])),
+        Let(2, Call(FunName("pow"), [Var(0), Var(1)])),
+        Ignore(Call(FunName("_print_Nat"), [Call(FunName("pow"), [Var(2), Var(1)])])),
         Return(Var(0))
     ])
+    
 ])
 
 ctx = AsmContext()
