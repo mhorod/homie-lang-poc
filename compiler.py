@@ -166,7 +166,6 @@ class Let:
     def to_asm(self, ctx: AsmContext) -> str:
         return f""" 
             {self.value.to_asm(ctx)}
-            ; LET
             pop rax
             mov rbx, rbp
             add rbx, {8 * self.var}
@@ -201,7 +200,7 @@ class Program:
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
-        return '\n'.join([l.strip() for l in result.split('\n')])
+        return '\n'.join(l for l in (l.strip() for l in result.split('\n')) if l != '')
     
 @dataclass
 class Arg:
@@ -239,6 +238,26 @@ class Member:
 
 
 
+@dataclass
+class Print:
+    value: str
+    
+    def to_asm(self, ctx: AsmContext):
+        str_label = ctx.unique_id("str")
+        after_str_label = ctx.unique_id("after_str")
+        return f"""
+            jmp {after_str_label}
+            {str_label}:
+            db {', '.join(str(int(b)) for b in self.value.encode('utf-8'))}
+            {after_str_label}:
+            mov rax, 1
+            mov rdi, 1
+            mov rsi, {str_label}
+            mov rdx, {len(self.value.encode())}
+            syscall
+        """
+
+
 class AsmContext:
     _id: int
     return_token: str
@@ -252,16 +271,56 @@ class AsmContext:
         return f"{name}_{self._id}"
 
 
+
+
 program = Program([
-    Fun("less", 0, [
+    Fun("_print_Nat_Zero", 0, [
+        Print("Zero"),
+        Return(Create(0, []))
+    ]),
+
+    Fun("_print_Nat_Succ", 0, [
+        Print("Succ "),
+        Ignore(Call(FunName("_print_Nat"), [Member(Arg(0), 0)])),
+        Return(Create(0, []))
+    ]),
+
+    Fun("_print_Nat", 0, [
+        Print("("),
+        Ignore(Fit(Arg(0), [
+            FitBranch(Pattern(0, []), Call(FunName("_print_Nat_Zero"), [Arg(0)])),
+            FitBranch(Pattern(1, [None]), Call(FunName("_print_Nat_Succ"), [Arg(0)])),
+        ])),
+        Print(")"),
+        Return(Create(0, []))
+    ]),
+
+    Fun("add", 0, [
         Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-            FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(0, [])),
-            FitBranch(Pattern(0, [Pattern(0, []), None]), Create(1, [])),
-            FitBranch(None, Call(FunName("less"), [Member(Arg(0), 0), Member(Arg(1), 0)]))
+            FitBranch(Pattern(0, [None, Pattern(0, [])]), Arg(0)),
+            FitBranch(None, Create(1, [Call(FunName("add"), [Arg(0), Member(Arg(1), 0)])])),
         ]))
     ]),
-    Fun("main", 0, [
-        Return(Call(FunName("less"), [Create(1, [Create(0, [])]), Create(1, [Create(1, [Create(0, [])])])]))
+
+    Fun("mul", 0, [
+        Return(Fit(Create(0, [Arg(0), Arg(1)]), [
+            FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(0, [])),
+            FitBranch(None, Call(FunName("add"), [Call(FunName("mul"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
+        ]))
+    ]),
+
+    Fun("pow", 0, [
+        Return(Fit(Create(0, [Arg(0), Arg(1)]), [
+            FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(1, [Create(0, [])])),
+            FitBranch(None, Call(FunName("mul"), [Call(FunName("pow"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
+        ]))
+    ]),
+
+    Fun("main", 2, [
+        Let(0, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
+        Let(1, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
+        Ignore(Call(FunName("_print_Nat"), [Call(FunName("pow"), [Var(0), Var(1)])])),
+        Return(Var(0))
     ])
 ])
 
