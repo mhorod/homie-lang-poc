@@ -34,7 +34,8 @@ class ProgramType:
     kind = ASTNodeKind.ProgramType
     items: list
 
-    def exec(self, context):
+    def exec(self, context=None):
+        context = context if context is not None else Context()
         for item in self.items:
             item.exec(context)
 

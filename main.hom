@@ -1,3 +1,7 @@
+dis Int {
+    Value(x: Int)
+}
+
 dis Foo[T, Self] {
     A(self: Self, f: Self -> T)
 }
@@ -11,8 +15,9 @@ fun foo_f(foo: FooImpl) -> Int {
 }
 
 
-fun bar[T](foo: Foo[T, ?]) -> T {
+fun bar[T](foo: Foo[T, ?], bar: Int[T]) -> T {
     ret foo.f foo.self;
+
 }
 
 fun main() {

@@ -275,6 +275,9 @@ class Interspersed(Parser):
             else:
                 return item
 
+            if len(result) >= self.minimum:
+                backtracking = True
+
             separator = self.separator_parser.run(cursor, backtracking)
             if separator.status == ResultStatus.Backtracked:
                 if len(result) < self.minimum:
@@ -282,8 +285,8 @@ class Interspersed(Parser):
                     return Result.Backtracked(item.errors)
                 else:
                     break
-            else:
-                print(separator)
+            elif separator.status == ResultStatus.Err:
+                return separator
         
         return Result.Ok(result)
 

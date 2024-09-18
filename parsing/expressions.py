@@ -40,8 +40,6 @@ def make_expr(parts):
         return result
     expr, _ = result.parsed
     expr = flatten_functions(expr)
-    print("EXPR PARTS: ", new_parts)
-    print("Result expr: ", expr)
     return Result.Ok(expr)
 
 def build_expr(nodes, last_operator):    
