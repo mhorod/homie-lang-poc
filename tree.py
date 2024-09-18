@@ -60,6 +60,8 @@ class EnumConstructor:
     generics: List[Type]
     variant_name: str
 
+    def exec(self, ctx):
+        return Call(self, []).exec(ctx) 
 
 @dataclass
 class ObjPath:

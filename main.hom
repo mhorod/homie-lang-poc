@@ -1,29 +1,22 @@
-dis Int {
-    Value(x: Int)
+dis Maybe[T] {
+    Nothing,
+    Just(value: T)
 }
 
-dis Foo[T, Self] {
-    A(self: Self, f: Self -> T)
+fun get_value[T](x : Maybe[T]::Just) -> T { 
+    ret x.value; 
 }
 
-dis FooImpl {
-    FooImpl(x: Int)
+fun or_default[T](x: Maybe[Maybe[T]], default: T) -> T {
+    ret fit x {
+        Nothing => default,
+        Just Nothing => default,
+        Just (Just _) => x.value.value
+    };
 }
 
-fun foo_f(foo: FooImpl) -> Int {
-    ret foo.x;
+fun main(a: Int) {
+    or_default[Int] (Maybe[Maybe[Int]]::Just Maybe[Int]::Nothing) a;
 }
 
-
-fun bar[T](foo: Foo[T, ?], bar: Int[T]) -> T {
-    ret foo.f foo.self;
-
-}
-
-fun main() {
-    let foo = Foo[Int, FooImpl]::A (FooImpl::FooImpl 42) foo_f;
-    ret bar[Int] foo;
-}
-
-
-main 0
+main 42

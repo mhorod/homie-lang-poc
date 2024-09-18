@@ -113,8 +113,8 @@ class FunBuilder:
     def arguments(self, arguments):
         self.fun.arguments = arguments
 
-    def ret(self, type):
-        self.fun.type = type
+    def ret(self, ret):
+        self.fun.ret = ret
 
     def body(self, body):
         self.fun.body = body
