@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 import tree
 import compiler
+import sys
 from typechecker import TypingContext, EnumDeclaration,VariantDeclaration, EnumTy
+import typechecker
 
 @dataclass
 class LLContext:
@@ -52,17 +54,18 @@ def let_to_ll(let: tree.Let, ctx: LLContext):
     return compiler.Let(var_id, expr_to_ll(let.value, ctx))
 
 
-def pattern_to_ll(enum_name: str, pattern: tree.Pattern | None, ctx: LLContext):
+def pattern_to_ll(ty: EnumTy, pattern: tree.Pattern | None, ctx: LLContext):
     if pattern is None:
         return None
-    enum_def = ctx.enum_defs[enum_name]
+    enum_def = ctx.enum_defs[ty.name]
     variant_def = enum_def.get_variant(pattern.name)
     children = []
     for (pattern_part, arg) in zip(pattern.args, variant_def.args):
-        if not isinstance(arg.ty, EnumTy):
+        arg_ty = typechecker.substitute(arg.ty, ty.generic_types)
+        if not isinstance(arg_ty, EnumTy):
             children.append(None)
         else: 
-            children.append(pattern_to_ll(arg.ty.name, pattern_part, ctx))
+            children.append(pattern_to_ll(arg_ty, pattern_part, ctx))
     variant_id = enum_def.get_variant_id(pattern.name)
     return compiler.Pattern(variant_id, children)
 
@@ -70,7 +73,7 @@ def pattern_to_ll(enum_name: str, pattern: tree.Pattern | None, ctx: LLContext):
 def fit_to_ll(fit: tree.Fit, ctx: LLContext):
     obj = expr_to_ll(fit.var, ctx)
     children = [compiler.FitBranch (
-        pattern_to_ll(fit.var.ty.name, branch.left, ctx), 
+        pattern_to_ll(fit.var.ty, branch.left, ctx), 
         expr_to_ll(branch.right, ctx)
     ) for branch in fit.branches]
     return compiler.Fit(obj, children)

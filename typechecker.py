@@ -3,6 +3,7 @@ from typing import *
 from dataclasses import dataclass
 from tree import *
 from copy import deepcopy
+import sys
 
 def typecheck(program):
     ctx = TypingContext({}, {})
@@ -368,6 +369,7 @@ def type_let(let: Let, ctx: TypingContext):
 def type_fun(fun: Fun, ctx: TypingContext):
     fun_ty = ctx.get_function(fun.name)
     ctx = ctx.clone()
+    ctx.generic_nums_ctx = {generic: i for (i, generic) in enumerate(fun.generics)}
     
     for arg, arg_ty in zip(fun.arguments, fun_ty.ty.arg_types):
         validate_type(arg_ty, ctx)
@@ -491,7 +493,8 @@ def type_call(call: Call, ctx: TypingContext):
     if not isinstance(fun_ty, FunTy):
         raise Exception(f"Type {fun_ty} is not callable")
     if len(fun_ty.arg_types) != len(call.arguments):
-        raise Exception(f"Function requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
+        raise Exception(f"Function {fun_ty} requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
+    
     
     for arg, expected_ty in zip(call.arguments, fun_ty.arg_types):
         arg_ty = type_expr(arg, ctx)

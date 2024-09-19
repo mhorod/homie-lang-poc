@@ -34,7 +34,7 @@ class FitBranch:
             """
 
     def pretty_print(self, depth = 0) -> str:
-        return f"{self.pattern.pretty_print()} => {self.content.pretty_print(depth + 1)}"
+        return f"{"_" if self.pattern is None else self.pattern.pretty_print()} => {self.content.pretty_print(depth + 1)}"
 
 @dataclass
 class Fit:
@@ -222,7 +222,7 @@ class Program:
         return '\n'.join(l for l in (l.strip() for l in result.split('\n')) if l != '')
 
     def pretty_print(self) -> str:
-        return '\n'.join(f.pretty_print(0) for f in self.functions)
+        return '\n\n'.join(f.pretty_print(0) for f in self.functions)
     
 @dataclass
 class Arg:

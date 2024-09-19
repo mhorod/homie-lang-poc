@@ -28,7 +28,7 @@ fun less(a: Nat, b: Nat) -> Bool {
 fun len(xs: List[T]) -> Nat {
     ret fit xs {
         Nil => Nat::Zero,
-        _ => Nat::Succ (len xs.xs)
+        Cons _ _ => Nat::Succ (len xs.xs)
     };
 }
 
