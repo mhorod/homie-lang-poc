@@ -442,6 +442,9 @@ def type_expr(expr: Expr, ctx: TypingContext):
     elif isinstance(expr, Member):
         expr.ty = type_member(expr, ctx)
         return expr.ty
+    elif isinstance(expr, Write):
+        expr.ty = None
+        return expr.ty
     else:
         raise Exception(f"Cannot get type of expression {expr}")
 
@@ -536,6 +539,9 @@ def do_typing(tree, ctx: TypingContext):
         return tree.ty
     elif isinstance(tree, Var):
         tree.ty = type_var(tree, ctx)
+        return tree.ty
+    elif isinstance(tree, EnumConstructor):
+        tree.ty = type_enum_constructor(tree, ctx)
         return tree.ty
     else:
         raise Exception(f"Cannot type {tree}")

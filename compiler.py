@@ -284,6 +284,7 @@ class Print:
             mov rsi, {str_label}
             mov rdx, {len(self.value.encode())}
             syscall
+            push qword 0
         """
     def pretty_print(self, depth = 0) -> str:
         return f"wrt \"{self.value.replace("\n", "\\n").replace("\t", "\\t")}\";"

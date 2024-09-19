@@ -17,6 +17,10 @@ dis Bool {
     False
 }
 
+dis Void {
+    Void
+}
+
 fun less(a: Nat, b: Nat) -> Bool {
     let p = Pair[Nat, Nat]::Pair a b;
     ret fit p {
@@ -78,6 +82,56 @@ fun sort[T](xs: List[T], less: T -> T -> Bool) -> List[T] {
     };
 }
 
+dis Dig {
+    Zero,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine
+}
+
+fun nat_to_dig(n: Nat) -> Dig {
+    ret fit n {
+        Zero => Dig::Zero,
+        Succ Zero => Dig::One,
+        Succ (Succ Zero) => Dig::Two,
+        Succ (Succ (Succ Zero)) => Dig::Three,
+        Succ (Succ (Succ (Succ Zero))) => Dig::Four,
+        Succ (Succ (Succ (Succ (Succ Zero)))) => Dig::Five,
+        Succ (Succ (Succ (Succ (Succ (Succ Zero))))) => Dig::Six,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))) => Dig::Seven,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))) => Dig::Eight,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) => Dig::Nine,
+    };
+}
+
+fun print(n: Dig) -> Void {
+    fit n {
+        Zero => wrt "0",
+        One => wrt "1",
+        Two => wrt "2",
+        Three => wrt "3",
+        Four => wrt "4",
+        Five => wrt "5",
+        Six => wrt "6",
+        Seven => wrt "7",
+        Eight => wrt "8",
+        Nine => wrt "9"
+    };
+    ret Void::Void;
+}
+
+fun print_with_space(n: Dig) -> Void {
+    print n;
+    wrt " ";
+    ret Void::Void;
+}
+
 fun main() {
     let zero = Nat::Zero;
     let one = Nat::Succ zero;
@@ -95,15 +149,14 @@ fun main() {
         (List[Nat]::Cons five 
         (List[Nat]::Cons three 
         (List[Nat]::Cons seven 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons nine 
-        (List[Nat]::Cons three 
         (List[Nat]::Cons four 
         (List[Nat]::Cons three 
-        (List[Nat]::Nil))))))))));
+        (List[Nat]::Cons seven 
+        (List[Nat]::Cons four 
+        (List[Nat]::Cons eight 
+        (List[Nat]::Nil)))))))));
 
-    sort[Nat] xs less;
-
-    wrt "Hello, world! ඞ\n";
+    let sorted = sort[Nat] xs less;
+    let digified = fmap[Nat, Dig] nat_to_dig sorted;
+    fmap[Dig, Void] print_with_space digified;
 }
