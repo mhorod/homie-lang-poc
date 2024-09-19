@@ -67,9 +67,10 @@ class Pattern:
     def to_asm(self, ctx: AsmContext) -> str:
         match_start = ctx.unique_id("match")
         match_end = ctx.unique_id("match_end")
+        after_match_end = ctx.unique_id("after_match_end")
 
         inner_match = ""
-        gap = 8
+        gap = 0
 
         for child in self.children:
             if child is None:
@@ -84,15 +85,25 @@ class Pattern:
                 """
                 gap = 8
 
+        if inner_match == "":
+            return f"""
+                {get_variant_from_rax()}
+                cmp rax, {self.type_id}
+            """
+
         return f"""
             {match_start}:
-                push rax
-                mov rax, [rax]
+                mov rbx, rax
+                {get_variant_from_rax()}
                 cmp rax, {self.type_id}
-                jne {match_end}
+                jne {after_match_end}
+                mov rax, rbx
+                {get_addr_from_rax()}
+                push rax
                 {inner_match}
             {match_end}:
                 pop rax
+            {after_match_end}:
         """
     def pretty_print(self, depth = 0) -> str:
         return ' '.join([f"<{self.type_id}>"] + ['_' if c is None else c.pretty_print(depth + 1) for c in self.children])
@@ -115,8 +126,7 @@ class Fun:
             mov rbp, rsp
             {'\n'.join(s.to_asm(ctx) for s in self.content)}
             {ctx.return_token}:
-            mov rsp, rbp
-            add rsp, {self.local_vars * 8}
+            lea rsp, [rbp + {self.local_vars * 8}]
             ret
         """
 
@@ -205,6 +215,7 @@ class Program:
             section .text
             global main
             extern _make_obj
+            extern heap
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
@@ -246,7 +257,8 @@ class Member:
         return f"""
             {self.obj.to_asm(ctx)}
             pop rax
-            add rax, {8 + 8 * self.i}
+            {get_addr_from_rax()}
+            add rax, {8 * self.i}
             push qword [rax]
         """
     def pretty_print(self, depth = 0) -> str:
@@ -304,6 +316,18 @@ class Create:
 def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
     return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Arg(i) for i in range(no_args)]))])
 
+def get_addr_from_rax() -> str:
+    return f"""
+        and rax, r12
+        sub rax, [heap]
+        neg rax
+    """
+
+def get_variant_from_rax() -> str:
+    return f"""
+        shr rax, 56
+    """
+
 class AsmContext:
     _id: int
     return_token: str
@@ -316,60 +340,6 @@ class AsmContext:
         self._id += 1
         return f"{name}_{self._id}"
 
-
-if __name__ == "__main__":
-    program = Program([
-        Fun("_print_Nat_Zero", 0, [
-            Print("Zero"),
-            Return(Create(0, []))
-        ]),
-
-        Fun("_print_Nat_Succ", 0, [
-            Print("Succ "),
-            Ignore(Call(FunName("_print_Nat"), [Member(Arg(0), 0)])),
-            Return(Create(0, []))
-        ]),
-
-        Fun("_print_Nat", 0, [
-            Print("("),
-            Ignore(Fit(Arg(0), [
-                FitBranch(Pattern(0, []), Call(FunName("_print_Nat_Zero"), [Arg(0)])),
-                FitBranch(Pattern(1, [None]), Call(FunName("_print_Nat_Succ"), [Arg(0)])),
-            ])),
-            Print(")"),
-            Return(Create(0, []))
-        ]),
-
-        Fun("add", 0, [
-            Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-                FitBranch(Pattern(0, [None, Pattern(0, [])]), Arg(0)),
-                FitBranch(None, Create(1, [Call(FunName("add"), [Arg(0), Member(Arg(1), 0)])])),
-            ]))
-        ]),
-
-        Fun("mul", 0, [
-            Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-                FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(0, [])),
-                FitBranch(None, Call(FunName("add"), [Call(FunName("mul"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
-            ]))
-        ]),
-
-        Fun("pow", 0, [
-            Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-                FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(1, [Create(0, [])])),
-                FitBranch(None, Call(FunName("mul"), [Call(FunName("pow"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
-            ]))
-        ]),
-
-        Fun("main", 2, [
-            Let(0, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
-            Let(1, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
-            Ignore(Call(FunName("_print_Nat"), [Call(FunName("pow"), [Var(0), Var(1)])])),
-            Return(Var(0))
-        ])
-    ])
-
 def compile(program: Program) -> str:
     ctx = AsmContext()
     return program.to_asm(ctx)
-
