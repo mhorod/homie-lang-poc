@@ -17,6 +17,7 @@ class KeywordKind(TokenKind, Enum):
     KwMod = auto()
     KwLet = auto()
     KwRet = auto()
+    KwWrt = auto()
 
 class DelimKind(TokenKind, Enum):
     OpenBrace = auto()

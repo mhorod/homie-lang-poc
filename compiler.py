@@ -286,7 +286,7 @@ class Print:
             syscall
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"{depth * " "}Print \"{self.value} \""
+        return f"wrt \"{self.value.replace("\n", "\\n").replace("\t", "\\t")}\";"
 
 def constructor_name(enum_name: str, variant_id: int):
     return f"__{enum_name}__{variant_id}"

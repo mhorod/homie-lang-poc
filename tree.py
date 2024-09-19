@@ -4,6 +4,8 @@ from typing import *
 from dataclasses import dataclass
 from enum import Enum, auto
 
+import ast
+
 class ASTNodeKind(Enum):
     ProgramType = auto()
     Fit = auto()
@@ -38,6 +40,12 @@ class ProgramType:
         context = context if context is not None else Context()
         for item in self.items:
             item.exec(context)
+
+@dataclass
+class Write:
+    value: str
+    def __init__(self, value: str):
+        self.value = ast.literal_eval(value)
 
 @dataclass
 class EnumType:

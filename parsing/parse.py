@@ -132,6 +132,16 @@ def ret_parser(expr_parser):
         .map(Return)
     )
 
+def wrt_parser():
+    return (
+        sequence()
+        .then_drop(kind(KeywordKind.KwWrt))
+        .commit()
+        .then_parse(kind(StringKind.String).map(get_text))
+        .map(extract)
+        .map(Write)
+    )
+
 def let_parser(expr_parser):
     return (
         builder(LetBuilder)
@@ -175,6 +185,7 @@ def expr_term_parser(expr_parser):
         | fun_instantiation_parser()
         | var_parser()
         | enum_constructor_parser()
+        | wrt_parser()
         | fail("expression")
         )
 

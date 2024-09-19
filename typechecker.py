@@ -506,6 +506,8 @@ def do_typing(tree, ctx: TypingContext):
     if isinstance(tree, ProgramType):
         for item in tree.items:
             do_typing(item, ctx)
+    elif isinstance(tree, Write):
+        return
     elif isinstance(tree, Fit):
         tree.ty = type_fit(tree, ctx)
         return tree.ty

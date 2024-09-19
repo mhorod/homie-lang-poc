@@ -78,7 +78,7 @@ fun sort[T](xs: List[T], less: T -> T -> Bool) -> List[T] {
     };
 }
 
-fun main(a: Int) -> Int {
+fun main() {
     let zero = Nat::Zero;
     let one = Nat::Succ zero;
     let two = Nat::Succ one;
@@ -102,6 +102,8 @@ fun main(a: Int) -> Int {
         (List[Nat]::Cons four 
         (List[Nat]::Cons three 
         (List[Nat]::Nil))))))))));
-    
-    ret sort[Nat] xs less;
+
+    sort[Nat] xs less;
+
+    wrt "Hello, world! ඞ\n";
 }

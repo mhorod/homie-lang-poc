@@ -85,6 +85,9 @@ def enum_cons_to_ll(cons: tree.EnumConstructor, ctx:LLContext):
     else: 
         return compiler.FunName(compiler.constructor_name(cons.enum_name, enum_def.get_variant_id(cons.variant_name)))
     
+def write_to_ll(write: tree.Write, ctx: LLContext):
+    return compiler.Print(write.value)
+    
 
 def expr_to_ll(expr: tree.Expr, ctx: LLContext):
     if isinstance(expr, tree.Var):
@@ -103,6 +106,8 @@ def expr_to_ll(expr: tree.Expr, ctx: LLContext):
         return let_to_ll(expr, ctx)
     elif isinstance(expr, tree.EnumConstructor):
         return enum_cons_to_ll(expr, ctx)
+    elif isinstance(expr, tree.Write):
+        return write_to_ll(expr, ctx)
     else:
         raise Exception(f"Unexpected tree node: {expr}")
 
@@ -121,7 +126,7 @@ def fun_to_ll(fun: tree.Fun, ty_ctx: TypingContext):
     arg_to_id = {arg.name: i for (i, arg) in enumerate(fun.arguments)}
 
     ctx = LLContext(var_to_id, arg_to_id, ty_ctx.enums)
-    body = [compiler.Ignore(expr_to_ll(expr, ctx)) if not isinstance(expr, tree.Return) and not isinstance(expr, tree.Let) and not hasattr(expr, "ty") else expr_to_ll(expr, ctx) for expr in fun.body.expressions]
+    body = [compiler.Ignore(expr_to_ll(expr, ctx)) if not isinstance(expr, tree.Write) and not isinstance(expr, tree.Return) and not isinstance(expr, tree.Let) and not hasattr(expr, "ty") else expr_to_ll(expr, ctx) for expr in fun.body.expressions]
     return compiler.Fun(fun.name, local_var_count, body)
     
 

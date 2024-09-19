@@ -79,7 +79,8 @@ KEYWORD_MAP = {
     "giv" : KeywordKind.KwGiv,
     "mod" : KeywordKind.KwMod,
     "let": KeywordKind.KwLet,
-    "ret": KeywordKind.KwRet
+    "ret": KeywordKind.KwRet,
+    "wrt": KeywordKind.KwWrt
 }
 
 def cook_token(token: RawToken) -> List[TokenKind]:
