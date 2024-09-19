@@ -22,6 +22,7 @@ def typecheck(program):
         typecheck_function_declaration(f, ctx)
 
     do_typing(program, ctx)
+    return ctx
     
 
 class TypingContext:
@@ -94,16 +95,20 @@ class FunctionDeclaration:
 @dataclass
 class EnumDeclaration:
     generic_arg_count: int
-    variants: Dict[str, VariantDeclaration]
+    variants: List[VariantDeclaration]
 
     def has_variant(self, name):
-        return name in self.variants
+        return any(variant.name == name for variant in self.variants)
 
     def get_variant(self, name):
-        return self.variants[name]
+        return next(variant for variant in self.variants if variant.name == name)
+
+    def get_variant_id(self, name):
+        return next(i for (i, variant) in enumerate(self.variants) if variant.name == name)
 
 @dataclass
 class VariantDeclaration:
+    name: str
     args: List[Arg]
 
     def get_arg_count(self):
@@ -211,12 +216,12 @@ def find_enum_declarations(program, ctx: TypingContext):
                 raise Exception(f"Duplicated enum: {item.name}")
             cloned_ctx = ctx.clone()
             cloned_ctx.generic_nums_ctx = {name: i for (i, name) in enumerate(item.generic_names)}
-            variants = {}
+            variants = [] 
             for branch in item.branches:
-                if branch.name in variants:
-                    raise Exception(f"Duplicated enum branch: {item.name}")
+                # if branch.name in variants:
+                #     raise Exception(f"Duplicated enum branch: {item.name}")
                 args = [Arg(arg.name, convert_type(arg.type, cloned_ctx)) for arg in branch.args]
-                variants[branch.name] = VariantDeclaration(args)
+                variants.append(VariantDeclaration(branch.name, args))
                     
             enum_declarations[item.name] = EnumDeclaration(len(item.generic_names), variants)
     return enum_declarations
@@ -224,7 +229,7 @@ def find_enum_declarations(program, ctx: TypingContext):
 def typecheck_enum_declaration(decl: EnumDeclaration | SimpleType, ctx: TypingContext):
     if isinstance(decl, SimpleType):
         return
-    for variant in decl.variants.values():
+    for variant in decl.variants:
         for arg_type in variant.get_arg_types():
             validate_type(arg_type, ctx)
 
@@ -271,6 +276,7 @@ def convert_type(parsed_type: Type, ctx: TypingContext):
         raise Exception(f"Cannot convert {parsed_type} into Ty")
     
 def convert_pattern(p: Pattern | Value | None, ctx: TypingContext):
+    # TODO: typecheck pattern with known enum variants
     if p is None:
         return None
     elif isinstance(p, Value):
@@ -414,25 +420,32 @@ def type_enum_constructor(expr: EnumConstructor, ctx: TypingContext):
 
 def type_expr(expr: Expr, ctx: TypingContext):
     if isinstance(expr, FunInstantiation):
-        return type_function_instantiation(expr, ctx)
+        expr.ty = type_function_instantiation(expr, ctx)
+        return expr.ty
     elif isinstance(expr, Value):
-        return type_value(expr, ctx)
+        expr.ty = type_value(expr, ctx)
+        return expr.ty
     elif isinstance(expr, EnumConstructor):
-        return type_enum_constructor(expr, ctx)
+        expr.ty = type_enum_constructor(expr, ctx)
+        return expr.ty
     elif isinstance(expr, Var):
-        return type_var(expr, ctx)
+        expr.ty = type_var(expr, ctx)
+        return expr.ty
     elif isinstance(expr, Fit):
-        return type_fit(expr, ctx)
+        expr.ty = type_fit(expr, ctx)
+        return expr.ty
     elif isinstance(expr, Call):
-        return type_call(expr, ctx)
+        expr.ty = type_call(expr, ctx)
+        return expr.ty
     elif isinstance(expr, Member):
-        return type_member(expr, ctx)
+        expr.ty = type_member(expr, ctx)
+        return expr.ty
     else:
         raise Exception(f"Cannot get type of expression {expr}")
 
 def type_enum_node(enum: EnumNode, ctx: TypingContext):
     enum_ty = ctx.get_enum(enum.name)
-    for variant in enum_ty.variants.values():
+    for variant in enum_ty.variants:
         for arg in variant.args:
             validate_type(arg.ty, ctx)
 
@@ -476,12 +489,10 @@ def type_fit_branch(fit_expr: Expr, fit_expr_ty: Ty, branch: FitBranch, ctx: Typ
 def type_call(call: Call, ctx: TypingContext):
     fun_ty = type_expr(call.fun, ctx)
     if not isinstance(fun_ty, FunTy):
-        return ErrorTy()
+        raise Exception(f"Type {fun_ty} is not callable")
     if len(fun_ty.arg_types) != len(call.arguments):
         raise Exception(f"Function requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
     
-    print("calling: ", call.fun)
-    print("called type: ", fun_ty)
     for arg, expected_ty in zip(call.arguments, fun_ty.arg_types):
         arg_ty = type_expr(arg, ctx)
         if not is_subtype(arg_ty, expected_ty):
@@ -493,31 +504,34 @@ def do_typing(tree, ctx: TypingContext):
         for item in tree.items:
             do_typing(item, ctx)
     elif isinstance(tree, Fit):
-        type_fit(tree, ctx)
+        tree.ty = type_fit(tree, ctx)
+        return tree.ty
     elif isinstance(tree, Let):
         ty = type_expr(tree.value, ctx)
         ctx.add_local_var(tree.name, ty)
-        if isinstance(ty, ErrorTy):
-            return ErrorTy()
-        else:
-            return None
     elif isinstance(tree, Call):
-        type_call(tree, ctx)
+        tree.ty = type_call(tree, ctx)
+        return tree.ty
     elif isinstance(tree, EnumNode):
-        type_enum_node(tree, ctx)
+        tree.ty = type_enum_node(tree, ctx)
+        return tree.ty
     elif isinstance(tree, Fun):
-        type_fun(tree, ctx)
+        tree.ty = type_fun(tree, ctx)
+        return tree.ty
     elif isinstance(tree, Block):
         for item in tree.expressions:
             do_typing(item, ctx)
     elif isinstance(tree, Return):
         do_typing(tree.expr, ctx)
     elif isinstance(tree, Member):
-        type_member(tree, ctx)
+        tree.ty = type_member(tree, ctx)
+        return tree.ty
     elif isinstance(tree, FunInstantiation):
-        type_function_instantiation(tree, ctx)
+        tree.ty = type_function_instantiation(tree, ctx)
+        return tree.ty
     elif isinstance(tree, Var):
-        type_var(tree, ctx)
+        tree.ty = type_var(tree, ctx)
+        return tree.ty
     else:
         raise Exception(f"Cannot type {tree}")
         

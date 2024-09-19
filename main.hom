@@ -1,22 +1,26 @@
-dis Maybe[T] {
-    Nothing,
-    Just(value: T)
+dis Pair {
+    Pair(fst: Nat, snd: Nat)
 }
 
-fun get_value[T](x : Maybe[T]::Just) -> T { 
-    ret x.value; 
+dis Nat {
+    Zero,
+    Succ(n: Nat)
 }
 
-fun or_default[T](x: Maybe[Maybe[T]], default: T) -> T {
-    ret fit x {
-        Nothing => default,
-        Just Nothing => default,
-        Just (Just _) => x.value.value
+dis Bool {
+    True,
+    False
+}
+
+fun less(a: Nat, b: Nat) -> Bool {
+    let p = Pair::Pair a b;
+    ret fit p {
+        Pair _ Zero => Bool::False,
+        Pair Zero _ => Bool::True,
+        Pair (Succ _) (Succ _) => less (p.fst.n) (p.snd.n)
     };
 }
 
-fun main(a: Int) {
-    or_default[Int] (Maybe[Maybe[Int]]::Just Maybe[Int]::Nothing) a;
+fun main() -> Nat {
+    ret less (Nat::Succ Nat::Zero) (Nat::Succ (Nat::Succ Nat::Zero));
 }
-
-main 42

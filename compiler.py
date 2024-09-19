@@ -9,25 +9,6 @@ type Expr = Create | Fit | FunName | Call | Var | Arg | Member
 type Statement = Ignore | Let | Return
 
 
-@dataclass
-class Create:
-    """creates object and puts it on the stack"""
-    type_id: int
-    children: List[Expr]
-
-    def to_asm(self, ctx: AsmContext):
-        create_children = ""
-        for child in self.children:
-            create_children += f"""
-                {child.to_asm(ctx)}
-            """
-        return f"""
-                {create_children}
-                push qword {len(self.children)}
-                push qword {self.type_id}
-                call _make_obj
-                push rax
-            """
 
 @dataclass
 class FitBranch:
@@ -52,6 +33,9 @@ class FitBranch:
                 {branch_end}:
             """
 
+    def pretty_print(self, depth = 0) -> str:
+        return f"{self.pattern.pretty_print()} => {self.content.pretty_print(depth + 1)}"
+
 @dataclass
 class Fit:
     """leaves result on stack"""
@@ -67,6 +51,9 @@ class Fit:
             pop rax
             mov [rsp], rax
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"fit {self.obj.pretty_print(depth + 1)} {{{br(depth)}{br(depth).join(b.pretty_print(depth + 1) for b in self.branches)} {br(depth - 1)}}}"
 
 
 
@@ -107,6 +94,11 @@ class Pattern:
             {match_end}:
                 pop rax
         """
+    def pretty_print(self, depth = 0) -> str:
+        return ' '.join([f"<{self.type_id}>"] + ['_' if c is None else c.pretty_print(depth + 1) for c in self.children])
+
+def br(depth):
+    return "\n" + (depth + 1) * " "
 
 @dataclass
 class Fun:
@@ -128,6 +120,9 @@ class Fun:
             ret
         """
 
+    def pretty_print(self, depth = 0) -> str:
+        return f"fun {self.name}[{self.local_vars}] {{{br(depth)}{br(depth).join(s.pretty_print(depth + 1) for s in self.content)}\n}}"
+
 
 @dataclass
 class Return:
@@ -139,6 +134,9 @@ class Return:
             pop rax
             jmp {ctx.return_token}
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"ret {self.content.pretty_print(depth + 1)};"
 
 @dataclass
 class Call:
@@ -158,6 +156,9 @@ class Call:
             push rax
         """
 
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.function.pretty_print(depth + 1)} {' '.join(arg.pretty_print(depth + 1) for arg in self.args)})"
+
 @dataclass
 class Let:
     var: int
@@ -172,6 +173,9 @@ class Let:
             mov [rbx], rax
         """
 
+    def pretty_print(self, depth = 0) -> str:
+        return f"let ({self.var}) = {self.value.pretty_print(depth + 1)};"
+
 @dataclass
 class FunName:
     name: str
@@ -179,6 +183,8 @@ class FunName:
         return f""" 
             push {self.name}
         """
+    def pretty_print(self, depth = 0) -> str:
+        return self.name
 
 @dataclass
 class Ignore:
@@ -188,6 +194,8 @@ class Ignore:
             {self.content.to_asm(ctx)}
             add rsp, 8
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"{self.content.pretty_print(depth)};"
 
 @dataclass
 class Program:
@@ -201,6 +209,9 @@ class Program:
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
         return '\n'.join(l for l in (l.strip() for l in result.split('\n')) if l != '')
+
+    def pretty_print(self) -> str:
+        return '\n'.join(f.pretty_print(0) for f in self.functions)
     
 @dataclass
 class Arg:
@@ -211,6 +222,8 @@ class Arg:
             add rbx, {8 + 8 * ctx.var_count + 8 * self.i}
             push qword [rbx]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"[{self.i}]"
 
 @dataclass
 class Var:
@@ -221,6 +234,8 @@ class Var:
             add rbx, {8 * self.var}
             push qword [rbx]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.var})"
 
 @dataclass
 class Member:
@@ -234,6 +249,8 @@ class Member:
             add rax, {8 + 8 * self.i}
             push qword [rax]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.obj.pretty_print(depth)}).{self.i}"
 
 
 
@@ -256,7 +273,36 @@ class Print:
             mov rdx, {len(self.value.encode())}
             syscall
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"{depth * " "}Print \"{self.value} \""
 
+def constructor_name(enum_name: str, variant_id: int):
+    return f"__{enum_name}__{variant_id}"
+
+@dataclass
+class Create:
+    """creates object and puts it on the stack"""
+    type_id: int
+    children: List[Expr]
+
+    def to_asm(self, ctx: AsmContext):
+        create_children = ""
+        for child in self.children:
+            create_children += f"""
+                {child.to_asm(ctx)}
+            """
+        return f"""
+                {create_children}
+                push qword {len(self.children)}
+                push qword {self.type_id}
+                call _make_obj
+                push rax
+            """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
+
+def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
+    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Arg(i) for i in range(no_args)]))])
 
 class AsmContext:
     _id: int
@@ -323,5 +369,7 @@ if __name__ == "__main__":
         ])
     ])
 
+def compile(program: Program) -> str:
     ctx = AsmContext()
-    print(program.to_asm(ctx))
+    return program.to_asm(ctx)
+

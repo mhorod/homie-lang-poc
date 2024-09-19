@@ -1,6 +1,7 @@
 from tokens import *
 from tree import *
 import tree
+import sys
 
 from parsing.combinators import *
 from parsing.builders import *
@@ -9,8 +10,7 @@ from parsing.expressions import *
 
 def parse(tokens: List[Token]) -> ProgramType:
     result =  program_parser().run(TokenCursor(tokens))
-    print(result.status)
-    print(result.errors)
+    print(result, file=sys.stderr)
     return result.parsed
 
 def program_parser():
@@ -65,10 +65,10 @@ def type_parser():
         if len(args) == 1:
             return args[0]
         else:
-            return FunctionType(args[:-1], args[:-1])
+            return FunctionType(args[:-1], args[-1])
 
     def type_parser_impl(self):
-        return interspersed(enum_constructor_parser(self) | enum_type_parser(self) | fail("enum type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
+        return interspersed_positive(enum_constructor_parser(self) | enum_type_parser(self) | fail("enum type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
 
     return Recursive(type_parser_impl)
 
