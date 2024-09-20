@@ -126,7 +126,7 @@ def fun_to_ll(fun: tree.Fun, ty_ctx: TypingContext):
     arg_to_id = {arg.name: i for (i, arg) in enumerate(fun.arguments)}
 
     ctx = LLContext(var_to_id, arg_to_id, ty_ctx.enums)
-    body = [compiler.Ignore(expr_to_ll(expr, ctx)) if not isinstance(expr, tree.Write) and not isinstance(expr, tree.Return) and not isinstance(expr, tree.Let) and not hasattr(expr, "ty") else expr_to_ll(expr, ctx) for expr in fun.body.expressions]
+    body = [expr_to_ll(expr, ctx) for expr in fun.body.expressions]
     return compiler.Fun(fun.name, local_var_count, body)
     
 
