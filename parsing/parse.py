@@ -1,17 +1,12 @@
 from tokens import *
 from tree import *
-import tree
-import sys
 
 from parsing.combinators import *
-from parsing.builders import *
 from parsing.helpers import *
 from parsing.expressions import *
 
-def parse(tokens: List[Token]) -> ProgramType:
-    result =  program_parser().run(TokenCursor(tokens))
-    print(result, file=sys.stderr)
-    return result.parsed
+def parse(tokens: List[Token]) -> Result:
+    return program_parser().run(TokenCursor(tokens))
 
 def program_parser():
     return (
@@ -19,41 +14,41 @@ def program_parser():
             .then_parse(repeat(item_parser()))
             .then_drop(ExpectEof())
             .map(flatten)
-            .map(ProgramType)
+            .map(ProgramNode)
     )
 
 def item_parser():
     return enum_parser() | function_parser() | expr_parser() | fail("item")
 
 def enum_parser():
-    variants_parser = braced(interspersed_positive(enum_variant_parser(), kind(SymbolKind.Comma)))
+    variants_parser = braced(interspersed_positive(dis_variant_parser(), kind(SymbolKind.Comma)))
     return (
-        builder(EnumNodeBuilder)
+        builder(DisNode.Builder)
             .then_drop(kind(KeywordKind.KwDis))
             .commit()
-            .then_parse(EnumNodeBuilder.name, kind(NameKind.EnumName).map(get_text))
-            .then_parse(EnumNodeBuilder.generic_names, optional(generic_params_parser(), []))
-            .then_parse(EnumNodeBuilder.branches, variants_parser)
+            .then_parse(DisNode.Builder.name, kind(NameKind.EnumName))
+            .then_parse(DisNode.Builder.generic_names, optional(generic_params_parser(), []))
+            .then_parse(DisNode.Builder.branches, variants_parser)
     )
 
 def generic_params_parser():
     return bracketed(Interspersed(kind(NameKind.EnumName).map(get_text), kind(SymbolKind.Comma)))
 
-def enum_variant_parser():
+def dis_variant_parser():
     return (
-        builder(EnumBranchBuilder)
-            .then_parse(EnumBranchBuilder.name, kind(NameKind.EnumName).map(get_text))
+        builder(DisBranchNode.Builder)
+            .then_parse(DisBranchNode.Builder.name, kind(NameKind.EnumName))
             .commit()
-            .then_parse(EnumBranchBuilder.args, optional(args_parser(), []))
+            .then_parse(DisBranchNode.Builder.args, optional(args_parser(), []))
     )
 
 def arg_parser():
     return (
-        builder(ArgBuilder)
-            .then_parse(ArgBuilder.name, ExpectKind(NameKind.VarName).map(get_text))
+        builder(ArgNode.Builder)
+            .then_parse(ArgNode.Builder.name, ExpectKind(NameKind.VarName))
             .commit()
             .then_drop(kind(SymbolKind.Colon))
-            .then_parse(ArgBuilder.type, type_parser())
+            .then_parse(ArgNode.Builder.type, type_parser())
     )
 
 def args_parser():
@@ -65,22 +60,22 @@ def type_parser():
         if len(args) == 1:
             return args[0]
         else:
-            return FunctionType(args[:-1], args[-1])
+            return FunctionTypeNode(args[:-1], args[-1])
 
     def type_parser_impl(self):
-        return interspersed_positive(enum_constructor_parser(self) | enum_type_parser(self) | fail("enum type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
+        return interspersed_positive(dis_constructor_parser(self) | dis_type_parser(self) | fail("type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
 
     return Recursive(type_parser_impl)
 
 def generic_args_parser(type_parser=type_parser()):
-    wildcard_parser = kind(SymbolKind.QuestionMark).replace(WildcardType())
-    return bracketed(Interspersed(wildcard_parser | type_parser, kind(SymbolKind.Comma)))
+    wildcard_parser = builder(WildcardTypeNode.Builder).then_drop(kind(SymbolKind.QuestionMark))
+    return bracketed(interspersed_positive(wildcard_parser | type_parser, kind(SymbolKind.Comma)))
 
-def enum_type_parser(type_parser=type_parser()):
+def dis_type_parser(type_parser=type_parser()):
     return (
-        builder(EnumTypeBuilder)
-            .then_parse(EnumTypeBuilder.name, kind(NameKind.EnumName).map(get_text))
-            .then_parse(EnumTypeBuilder.generics, optional(generic_args_parser(type_parser), []))
+        builder(DisTypeNode.Builder)
+            .then_parse(DisTypeNode.Builder.name, kind(NameKind.EnumName))
+            .then_parse(DisTypeNode.Builder.generics, optional(generic_args_parser(type_parser), []))
     )
 
 def function_parser():
@@ -92,44 +87,42 @@ def function_parser():
         .map(extract)
     )
     return (
-        builder(FunBuilder)
+        builder(FunNode.Builder)
             .then_drop(kind(KeywordKind.KwFun))
             .commit()
-            .then_parse(FunBuilder.name, kind(NameKind.VarName).map(get_text))
-            .then_parse(FunBuilder.generics, optional(generic_params_parser(), []))
-            .then_parse(FunBuilder.arguments, args_parser())
-            .then_parse(FunBuilder.ret, optional(return_type_parser, None))
-            .then_parse(FunBuilder.body, block_parser(expr_parser()))
+            .then_parse(FunNode.Builder.name, kind(NameKind.VarName))
+            .then_parse(FunNode.Builder.generics, optional(generic_params_parser(), []))
+            .then_parse(FunNode.Builder.args, args_parser())
+            .then_parse(FunNode.Builder.ret, optional(return_type_parser, None))
+            .then_parse(FunNode.Builder.body, block_parser(expr_parser()))
     )
 
 def fit_branch_parser(expr_parser):
     return (
-        builder(FitBranchBuilder)
+        builder(FitBranchNode.Builder)
             .then_drop(not_parse(kind(DelimKind.CloseBrace)))
             .commit()
-            .then_parse(FitBranchBuilder.left, pattern_parser())
+            .then_parse(FitBranchNode.Builder.left, pattern_parser())
             .then_drop(kind(SymbolKind.FatArrow))
-            .then_parse(FitBranchBuilder.right, expr_parser)
+            .then_parse(FitBranchNode.Builder.right, expr_parser)
     )
 
 def fit_parser(expr_parser):
     branches_parser = braced(interspersed_positive(fit_branch_parser(expr_parser), kind(SymbolKind.Comma)))
     return (
-        builder(FitBuilder)
+        builder(FitNode.Builder)
             .then_drop(kind(KeywordKind.KwFit))
             .commit()
-            .then_parse(FitBuilder.var, expr_parser)
-            .then_parse(FitBuilder.branches, branches_parser)
+            .then_parse(FitNode.Builder.expr, expr_parser)
+            .then_parse(FitNode.Builder.branches, branches_parser)
     )
 
 def ret_parser(expr_parser):
     return (
-        sequence()
-        .then_drop(kind(KeywordKind.KwRet))
-        .commit()
-        .then_parse(expr_parser)
-        .map(extract)
-        .map(Return)
+        builder(RetNode.Builder)
+            .then_drop(kind(KeywordKind.KwRet))
+            .commit()
+            .then_parse(RetNode.Builder.expr, expr_parser)
     )
 
 def wrt_parser():
@@ -144,12 +137,12 @@ def wrt_parser():
 
 def let_parser(expr_parser):
     return (
-        builder(LetBuilder)
+        builder(LetNode.Builder)
             .then_drop(kind(KeywordKind.KwLet))
             .commit()
-            .then_parse(LetBuilder.name, kind(NameKind.VarName).map(get_text))
+            .then_parse(LetNode.Builder.name, kind(NameKind.VarName))
             .then_drop(kind(SymbolKind.Equals))
-            .then_parse(LetBuilder.value, expr_parser)
+            .then_parse(LetNode.Builder.value, expr_parser)
     )
 
 
@@ -160,8 +153,10 @@ def block_parser(expr_parser):
             .commit()
             .then_drop(kind(SymbolKind.Semicolon))
     )
-    return braced(repeat(single_expr_parser)).map(flatten).map(Block)
-
+    return (
+        builder(BlockNode.Builder)
+            .then_parse(BlockNode.Builder.statements, braced(repeat(single_expr_parser).map(flatten)))
+    )
 def expr_parser():
     def expr_parser_impl(self):
         return repeat_positive(operator_parser() | expr_term_parser(self) | fail("expression or operator")).and_then(make_expr)
@@ -169,11 +164,20 @@ def expr_parser():
 
 
 def operator_parser():
+    def op(symbol, precedence, associativity):
+        return (
+            builder(OperatorNode.Builder)
+                .then_parse(OperatorNode.Builder.name, kind(symbol))
+                .then_parse(OperatorNode.Builder.precedence, supply(lambda: precedence))
+                .then_parse(OperatorNode.Builder.associativity, supply(lambda: associativity))
+        )
+
     return (
-        kind(SymbolKind.Dot).replace(Operator(SymbolKind.Dot, 0, Associativity.LEFT))
-        | kind(SymbolKind.Plus).replace(Operator(SymbolKind.Plus, 3, Associativity.LEFT))
-        | kind(SymbolKind.Asterisk).replace(Operator(SymbolKind.Asterisk, 2, Associativity.LEFT))
+        op(SymbolKind.Dot, 0, Associativity.LEFT)
+        | op(SymbolKind.Asterisk, 2, Associativity.LEFT)
+        | op(SymbolKind.Plus, 3, Associativity.LEFT)
     )
+
 
 def expr_term_parser(expr_parser):
     return (
@@ -184,32 +188,39 @@ def expr_term_parser(expr_parser):
         | parenthesized(expr_parser)
         | fun_instantiation_parser()
         | var_parser()
-        | enum_constructor_parser()
+        | dis_constructor_parser()
         | wrt_parser()
         | fail("expression")
         )
 
 def fun_instantiation_parser():
     return (
-        builder(FunInstantiationBuilder)
-            .then_parse(FunInstantiationBuilder.name, kind(NameKind.VarName).map(get_text))
-            .then_parse(FunInstantiationBuilder.generics, generic_args_parser())
+        builder(FunInstNode.Builder)
+            .then_parse(FunInstNode.Builder.name, kind(NameKind.VarName))
+            .then_parse(FunInstNode.Builder.generics, generic_args_parser())
     )
 
 def var_parser():
-    return kind(NameKind.VarName).map(get_text).map(Var)
+    return builder(VarNode.Builder).then_parse(VarNode.Builder.name, kind(NameKind.VarName))
 
 def enum_pattern_parser(pattern_parser):
     return (
-        builder(EnumPatternBuilder)
-            .then_parse(EnumPatternBuilder.name, kind(NameKind.EnumName).map(get_text))
+        builder(PatternNode.Builder)
+            .then_parse(PatternNode.Builder.name, kind(NameKind.EnumName))
             .commit()
-            .then_parse(EnumPatternBuilder.args, repeat(enum_pattern_arg_parser(pattern_parser)))
+            .then_parse(PatternNode.Builder.args, repeat(enum_pattern_arg_parser(pattern_parser)))
     )
 
 def enum_pattern_arg_parser(pattern_parser):
-    variant_pattern_parser = kind(NameKind.EnumName).map(get_text).map(lambda name: tree.Pattern(name, []))
-    return variant_pattern_parser | catchall_parser() | value_parser() | parenthesized(pattern_parser) | fail("pattern")
+    return variant_pattern_parser() | catchall_parser() | value_parser() | parenthesized(pattern_parser) | fail("pattern")
+
+def variant_pattern_parser():
+    return (
+        builder(PatternNode.Builder)
+            .then_parse(PatternNode.Builder.name, kind(NameKind.EnumName))
+            .then_parse(PatternNode.Builder.args, supply(list))
+    )
+
 
 def pattern_parser():
     def pattern_parser_impl(self):
@@ -221,17 +232,16 @@ def catchall_parser():
 
 def value_parser():
     return (
-        kind(NumberKind.Integer).map(get_text).map(int).map(Value)
-        | kind(StringKind.String).map(get_text).map(Value)
-        | fail("value")
+        builder(Value.Builder)
+        .then_parse(Value.Builder.token, kind(NumberKind.Integer) | kind(StringKind.String) | fail("value"))
     )
 
-def enum_constructor_parser(type_parser=type_parser()):
+def dis_constructor_parser(type_parser=type_parser()):
     return (
-        builder(EnumConstructorBuilder)
-            .then_parse(EnumConstructorBuilder.enum_name, kind(NameKind.EnumName).map(get_text))
-            .then_parse(EnumConstructorBuilder.generics, optional(generic_args_parser(type_parser), []))
+        builder(DisConstructorNode.Builder)
+            .then_parse(DisConstructorNode.Builder.name, kind(NameKind.EnumName))
+            .then_parse(DisConstructorNode.Builder.generics, optional(generic_args_parser(type_parser), []))
             .then_drop(kind(SymbolKind.DoubleColon))
             .commit()
-            .then_parse(EnumConstructorBuilder.variant_name, kind(NameKind.EnumName).map(get_text))
+            .then_parse(DisConstructorNode.Builder.variant_name, kind(NameKind.EnumName))
     )

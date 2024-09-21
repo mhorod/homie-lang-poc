@@ -1,23 +1,35 @@
 from lex import lex
 from parsing.parse import parse
-from tree import ProgramType
+from tree import ProgramNode
 from tokens import Source
-from typechecker import typecheck
+from typechecking.typechecker import typecheck
 from ast_to_ll import to_ll
 from compiler import compile
+from parsing.combinators import Result, ResultStatus
+from error_reporting import print_error, print_error_report
 import sys
 
-with open("main.hom", "r") as f:
-    source = Source("main.hom", f.read())
+file = "test.hom"
+with open(file, "r") as f:
+    source = Source(file, f.read())
 
 tokens = lex(source)
-program = parse(tokens)
+parsing_result = parse(tokens)
 
-if isinstance(program, ProgramType):
-    ctx = typecheck(program)
+if parsing_result.status == ResultStatus.Ok:
+    program = parsing_result.parsed
+
+    ctx, report = typecheck(program)
+    
+    if report.has_errors():
+        print_error_report(report)
+
     program = to_ll(program, ctx)
 
     print(program.pretty_print(), file=sys.stderr)
-    print(compile(program))
+    #print(compile(program))
 
     #program.exec()
+else:
+    for error in parsing_result.errors:
+        print_error(error)

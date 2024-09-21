@@ -52,36 +52,6 @@ def lex(source: Source) -> List[Token]:
         tokens += cook_token(raw_token)
     return tokens
 
-SYMBOL_MAP = {
-    ":" : SymbolKind.Colon,
-    ";" : SymbolKind.Semicolon,
-    "," : SymbolKind.Comma,
-    "." : SymbolKind.Dot,
-    "?" : SymbolKind.QuestionMark,
-    "!" : SymbolKind.ExclamationMark,
-    "->": SymbolKind.Arrow,
-    "=>": SymbolKind.FatArrow,
-    "_": SymbolKind.Underscore,
-    "::": SymbolKind.DoubleColon,
-    "=" : SymbolKind.Equals,
-    "(": DelimKind.OpenParen,
-    ")": DelimKind.CloseParen,
-    "{": DelimKind.OpenBrace,
-    "}": DelimKind.CloseBrace,
-    "[": DelimKind.OpenBracket,
-    "]": DelimKind.CloseBracket
-}
-
-KEYWORD_MAP = {
-    "fun" : KeywordKind.KwFun,
-    "fit" : KeywordKind.KwFit,
-    "dis" : KeywordKind.KwDis,
-    "giv" : KeywordKind.KwGiv,
-    "mod" : KeywordKind.KwMod,
-    "let": KeywordKind.KwLet,
-    "ret": KeywordKind.KwRet,
-    "wrt": KeywordKind.KwWrt
-}
 
 def cook_token(token: RawToken) -> List[TokenKind]:
     if token.text in SYMBOL_MAP:

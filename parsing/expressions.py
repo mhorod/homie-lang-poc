@@ -6,7 +6,7 @@ from tokens import *
 
 @dataclass
 class FunctionCallOperator:
-    pass
+    kind = 0
 
 class FunctionCall:
     def __init__(self, left, right):
@@ -21,18 +21,22 @@ class FunctionCall:
         
     def flatten(self):
         parts = self.to_list()
-        return Call(parts[0], parts[1:])
+        call_node =  CallNode(parts[0], parts[1:])
+        call_node.location = Location.wrap(parts[0].location, parts[-1].location)
+        return call_node
     
 def make_expr(parts):
-    if isinstance(parts[0], Operator):
-        return Result.Err(f"Expected expression, found {parts[0]}")
+    if isinstance(parts[0], OperatorNode):
+        msg = Message(parts[0].location, f"Expression cannot begin with an operator")
+        return Result.Err([Error(msg)])
 
     new_parts = [parts[0]]
     for i in range(1, len(parts)):
-        if not isinstance(new_parts[-1], Operator) and not isinstance(parts[i], Operator):
-            new_parts.append(Operator(FunctionCallOperator(), 1, Associativity.LEFT))
-        elif isinstance(new_parts[-1], Operator) and isinstance(parts[i], Operator):
-            return Result.Err(f"Expected expression, found {parts[i]}")
+        if not isinstance(new_parts[-1], OperatorNode) and not isinstance(parts[i], OperatorNode):
+            new_parts.append(OperatorNode(FunctionCallOperator(), 1, Associativity.LEFT))
+        elif isinstance(new_parts[-1], OperatorNode) and isinstance(parts[i], OperatorNode):
+            msg = Message(parts[i].location, "Expected expression")
+            return Result.Err([Error(msg)])
         new_parts.append(parts[i])
 
     result = build_expr(new_parts, None)
@@ -59,23 +63,30 @@ def build_expr(nodes, last_operator):
     return Result.Ok((left, nodes))
 
 def build_node(left, operator, right):
-    if operator.kind == FunctionCallOperator():
+    if operator.name == FunctionCallOperator():
         return Result.Ok(FunctionCall(left, right))
-    elif operator.kind == SymbolKind.Dot:
-        if isinstance(right, Var):
-            return Result.Ok(Member(left, right.name))
+    elif operator.name.kind == SymbolKind.Dot:
+        if isinstance(right, VarNode):
+            return Result.Ok(MemberNode(left, right.name))
         else:
-            return Result.Err(f"Expected member name, found {right}")
+            msg = Message(right.location, f"Expected member name")
+            return Result.Err([Error(msg)])
     else:
-        return Result.Ok(Call(operator.kind, left, right))
+        call_node = CallNode(VarNode(operator.name), [left, right])
+        call_node.location = Location.wrap(left.location, right.location)
+        return Result.Ok(call_node)
 
 def flatten_functions(expr):
     if isinstance(expr, FunctionCall):
         return flatten_functions(expr.flatten())
-    elif isinstance(expr, Call):
-        return Call(flatten_functions(expr.fun), [flatten_functions(arg) for arg in expr.arguments])
-    elif isinstance(expr, Member):
-        return Member(flatten_functions(expr.expr), expr.member_name)
+    elif isinstance(expr, CallNode):
+        new_node = CallNode(flatten_functions(expr.fun), [flatten_functions(arg) for arg in expr.arguments])
+        new_node.location = expr.location
+        return new_node
+    elif isinstance(expr, MemberNode):
+        new_node = MemberNode(flatten_functions(expr.expr), expr.member_name)
+        new_node.location = expr.location
+        return new_node
     else:
         return expr
 
@@ -92,7 +103,7 @@ def right_op_first(left, right):
     if left is None:
         return True
 
-    if left.kind == right.kind:
+    if left.name.kind == right.name.kind:
         return left.associativity == Associativity.RIGHT
     else:
         return left.precedence > right.precedence
