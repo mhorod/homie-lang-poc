@@ -67,7 +67,9 @@ def build_node(left, operator, right):
         return Result.Ok(FunctionCall(left, right))
     elif operator.name.kind == SymbolKind.Dot:
         if isinstance(right, VarNode):
-            return Result.Ok(MemberNode(left, right.name))
+            node = MemberNode(left, right.name)
+            node.location = Location.wrap(left.location, right.location)
+            return Result.Ok(node)
         else:
             msg = Message(right.location, f"Expected member name")
             return Result.Err([Error(msg)])

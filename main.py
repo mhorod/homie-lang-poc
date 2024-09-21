@@ -9,7 +9,7 @@ from parsing.combinators import Result, ResultStatus
 from error_reporting import print_error, print_error_report
 import sys
 
-file = "test.hom"
+file = "main.hom"
 with open(file, "r") as f:
     source = Source(file, f.read())
 

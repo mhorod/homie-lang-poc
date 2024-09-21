@@ -96,8 +96,8 @@ class Typechecker:
             decl = self.ctx.get_function(name)
             generics = []
             for ty in fun_inst.generics:
-                converted = self.convert_type(ty, self.ctx)
-                self.validate_type(converted, self.ctx)
+                converted = self.convert_type(ty)
+                self.validate_type(converted)
                 generics.append(converted)
             return self.instantiate_function(name, decl, generics)
         else:
@@ -121,7 +121,7 @@ class Typechecker:
         if dis_decl.generic_arg_count != len(expr.generics):
             raise Exception(f"dis {expr.dis_name} expects {dis_decl.generic_arg_count} generic arguments but got {len(expr.generics)}")
         
-        generics = [self.convert_type(generic, self.ctx) for generic in expr.generics]
+        generics = [self.convert_type(generic) for generic in expr.generics]
 
         variant = dis_decl.get_variant(expr.variant_name.text)
         variant_ty = DisTy(expr.name.text, generics, TyPattern(expr.variant_name.text, None))
@@ -199,11 +199,13 @@ class Typechecker:
 
     def type_fit_branch(self, fit_expr: ExprNode, fit_expr_ty: Ty, branch: FitBranchNode):
         if not isinstance(fit_expr, VarNode) or not isinstance(branch.left, PatternNode):
-            return self.type_expr(branch.right, ctx)
+            return self.type_expr(branch.right)
         else:
-            pat = self.convert_pattern(branch.left, ctx)
-            ctx = ctx.with_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
-            result = self.type_expr(branch.right, ctx)
+            pat = self.convert_pattern(branch.left)
+            self.ctx.push()
+            self.ctx.add_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
+            result = self.type_expr(branch.right)
+            self.ctx.pop()
             return result
 
 
@@ -221,7 +223,7 @@ class Typechecker:
             raise Exception(f"Function {fun_ty} requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
         
         
-        for arg, expected_ty in zip(call.arguments, fun_ty.arg_types):
+        for arg_ty, expected_ty in zip(arg_tys, fun_ty.arg_types):
             if not is_subtype(arg_ty, expected_ty):
                 raise Exception(f"Function expects argument of type {expected_ty} but {arg_ty} was provided")
         return fun_ty.result_type
@@ -234,13 +236,13 @@ class Typechecker:
                 if parsed_type.generics:
                     raise Exception(f"Type variable {parsed_type.name} cannot be generic")
                 else:
-                    return TyVar(self.ctx.generic_nums_ctx[parsed_type.name.text])
+                    return TyVar(self.ctx.get_generic(parsed_type.name.text))
             elif parsed_type.name.text in self.ctx.simple_types and not self.ctx.has_dis(parsed_type.name.text):
                 if parsed_type.generics:
                     raise Exception(f"Type {parsed_type.name} is not generic")
                 return self.ctx.simple_types[parsed_type.name.text]
             else:
-                return DisTy(parsed_type.name.text, [self.convert_type(gen, self.ctx) for gen in parsed_type.generics], None)
+                return DisTy(parsed_type.name.text, [self.convert_type(gen) for gen in parsed_type.generics], None)
         elif isinstance(parsed_type, FunctionTypeNode):
             arg_types = [self.convert_type(arg) for arg in parsed_type.args]
             ret_type = self.convert_type(parsed_type.ret)
