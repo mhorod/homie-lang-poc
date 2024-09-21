@@ -6,32 +6,13 @@ from enum import Enum, auto
 
 type Expr = Create | Fit | FunName | Call | Var | Arg | Member
 
-type Statement = Ignore | Let | Return
+type Statement = Let | Return
 
 
-@dataclass
-class Create:
-    """creates object and puts it on the stack"""
-    type_id: int
-    children: List[Expr]
-
-    def to_asm(self, ctx: AsmContext):
-        create_children = ""
-        for child in self.children:
-            create_children += f"""
-                {child.to_asm(ctx)}
-            """
-        return f"""
-                {create_children}
-                push qword {len(self.children)}
-                push qword {self.type_id}
-                call _make_obj
-                push rax
-            """
 
 @dataclass
 class FitBranch:
-    """checks if object on stack fits the pattern and if so, leaves content's result on stack"""
+    """checks if object on stack fits the pattern and if so, leaves content's result in rax"""
     pattern: Pattern | None
     content: Expr
 
@@ -52,9 +33,12 @@ class FitBranch:
                 {branch_end}:
             """
 
+    def pretty_print(self, depth = 0) -> str:
+        return f"{"_" if self.pattern is None else self.pattern.pretty_print()} => {self.content.pretty_print(depth + 1)}"
+
 @dataclass
 class Fit:
-    """leaves result on stack"""
+    """leaves result in rax"""
     obj: Expr
     branches: List[FitBranch]
 
@@ -62,11 +46,15 @@ class Fit:
         fit_end = ctx.unique_id("fit_end")
         return f"""
             {self.obj.to_asm(ctx)}
-            {'\n'.join(branch.to_asm(ctx, fit_end) for branch in self.branches)}
+            push rax
+            {'\n'.join(branch.to_asm(ctx, fit_end) for branch in self.branches[:-1])}
+            {self.branches[-1].content.to_asm(ctx)}
             {fit_end}:
-            pop rax
-            mov [rsp], rax
+            add rsp, 8
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"fit {self.obj.pretty_print(depth + 1)} {{{br(depth)}{br(depth).join(b.pretty_print(depth + 1) + "," for b in self.branches)} {br(depth - 1)}}}"
 
 
 
@@ -80,9 +68,10 @@ class Pattern:
     def to_asm(self, ctx: AsmContext) -> str:
         match_start = ctx.unique_id("match")
         match_end = ctx.unique_id("match_end")
+        after_match_end = ctx.unique_id("after_match_end")
 
         inner_match = ""
-        gap = 8
+        gap = 0
 
         for child in self.children:
             if child is None:
@@ -97,16 +86,31 @@ class Pattern:
                 """
                 gap = 8
 
+        if inner_match == "":
+            return f"""
+                {get_variant_from_rax()}
+                cmp rax, {self.type_id}
+            """
+
         return f"""
             {match_start}:
-                push rax
-                mov rax, [rax]
+                mov rbx, rax
+                {get_variant_from_rax()}
                 cmp rax, {self.type_id}
-                jne {match_end}
+                jne {after_match_end}
+                mov rax, rbx
+                {get_addr_from_rax()}
+                push rax
                 {inner_match}
             {match_end}:
                 pop rax
+            {after_match_end}:
         """
+    def pretty_print(self, depth = 0) -> str:
+        return ' '.join([f"<{self.type_id}>"] + ['_' if c is None else c.pretty_print(depth + 1) for c in self.children])
+
+def br(depth):
+    return "\n" + (depth + 1) * " "
 
 @dataclass
 class Fun:
@@ -119,14 +123,15 @@ class Fun:
         ctx.var_count = self.local_vars
         return f"""
             {self.name}:
-            sub rsp, {self.local_vars * 8}
             mov rbp, rsp
+            sub rsp, {self.local_vars * 8}
             {'\n'.join(s.to_asm(ctx) for s in self.content)}
-            {ctx.return_token}:
             mov rsp, rbp
-            add rsp, {self.local_vars * 8}
             ret
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"fun {self.name}[{self.local_vars}] {{{br(depth)}{br(depth).join(s.pretty_print(depth + 1) + ";" for s in self.content)}\n}}"
 
 
 @dataclass
@@ -136,27 +141,34 @@ class Return:
     def to_asm(self, ctx: AsmContext) -> str:
         return f""" 
             {self.content.to_asm(ctx)}
-            pop rax
-            jmp {ctx.return_token}
+            mov rsp, rbp
+            ret
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"ret {self.content.pretty_print(depth + 1)}"
 
 @dataclass
 class Call:
-    """calls function and leaves result on the stack"""
+    """calls function and leaves result in rax"""
     function: Expr
     args: List[Expr]
 
     def to_asm(self, ctx: AsmContext) -> str:
         return f""" 
             push rbp
-            {'\n'.join(arg.to_asm(ctx) for arg in reversed(self.args))}
+            {'\n'.join(f'''
+                {arg.to_asm(ctx)}
+                push rax
+            ''' for arg in reversed(self.args))}
             {self.function.to_asm(ctx)}
-            pop rax
             call rax
             add rsp, {len(self.args) * 8}
             pop rbp
-            push rax
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.function.pretty_print(depth + 1)} {' '.join(arg.pretty_print(depth + 1) for arg in self.args)})"
 
 @dataclass
 class Let:
@@ -166,28 +178,21 @@ class Let:
     def to_asm(self, ctx: AsmContext) -> str:
         return f""" 
             {self.value.to_asm(ctx)}
-            pop rax
-            mov rbx, rbp
-            add rbx, {8 * self.var}
-            mov [rbx], rax
+            mov [rbp - {8 + 8 * self.var}], rax
         """
+
+    def pretty_print(self, depth = 0) -> str:
+        return f"let ({self.var}) = {self.value.pretty_print(depth + 1)}"
 
 @dataclass
 class FunName:
     name: str
     def to_asm(self, ctx: AsmContext) -> str:
         return f""" 
-            push {self.name}
+            mov rax, {self.name}
         """
-
-@dataclass
-class Ignore:
-    content: Expr
-    def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
-            {self.content.to_asm(ctx)}
-            add rsp, 8
-        """
+    def pretty_print(self, depth = 0) -> str:
+        return self.name
 
 @dataclass
 class Program:
@@ -197,30 +202,34 @@ class Program:
             section .text
             global main
             extern _make_obj
+            extern heap
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
         return '\n'.join(l for l in (l.strip() for l in result.split('\n')) if l != '')
+
+    def pretty_print(self) -> str:
+        return '\n\n'.join(f.pretty_print(0) for f in self.functions)
     
 @dataclass
 class Arg:
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rbx, rbp
-            add rbx, {8 + 8 * ctx.var_count + 8 * self.i}
-            push qword [rbx]
+            mov rax, [rbp + {8 + 8 * self.i}]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"[{self.i}]"
 
 @dataclass
 class Var:
     var: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rbx, rbp
-            add rbx, {8 * self.var}
-            push qword [rbx]
+            mov rax, [rbp - {8 + 8 * self.var}]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.var})"
 
 @dataclass
 class Member:
@@ -230,10 +239,12 @@ class Member:
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
             {self.obj.to_asm(ctx)}
-            pop rax
-            add rax, {8 + 8 * self.i}
-            push qword [rax]
+            {get_addr_from_rax()}
+            add rax, {8 * self.i}
+            mov rax, [rax]
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({self.obj.pretty_print(depth)}).{self.i}"
 
 
 
@@ -256,7 +267,48 @@ class Print:
             mov rdx, {len(self.value.encode())}
             syscall
         """
+    def pretty_print(self, depth = 0) -> str:
+        return f"wrt \"{self.value.replace("\n", "\\n").replace("\t", "\\t")}\""
 
+def constructor_name(enum_name: str, variant_id: int):
+    return f"__{enum_name}__{variant_id}"
+
+@dataclass
+class Create:
+    """creates object and puts it in rax"""
+    type_id: int
+    children: List[Expr]
+
+    def to_asm(self, ctx: AsmContext):
+        create_children = ""
+        for child in self.children:
+            create_children += f"""
+                {child.to_asm(ctx)}
+                push rax
+            """
+        return f"""
+                {create_children}
+                push qword {len(self.children)}
+                push qword {self.type_id}
+                call _make_obj
+            """
+    def pretty_print(self, depth = 0) -> str:
+        return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
+
+def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
+    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Arg(i) for i in range(no_args)]))])
+
+def get_addr_from_rax() -> str:
+    return f"""
+        and rax, r12
+        sub rax, [heap]
+        neg rax
+    """
+
+def get_variant_from_rax() -> str:
+    return f"""
+        shr rax, 56
+    """
 
 class AsmContext:
     _id: int
@@ -270,59 +322,6 @@ class AsmContext:
         self._id += 1
         return f"{name}_{self._id}"
 
-
-
-
-program = Program([
-    Fun("_print_Nat_Zero", 0, [
-        Print("Zero"),
-        Return(Create(0, []))
-    ]),
-
-    Fun("_print_Nat_Succ", 0, [
-        Print("Succ "),
-        Ignore(Call(FunName("_print_Nat"), [Member(Arg(0), 0)])),
-        Return(Create(0, []))
-    ]),
-
-    Fun("_print_Nat", 0, [
-        Print("("),
-        Ignore(Fit(Arg(0), [
-            FitBranch(Pattern(0, []), Call(FunName("_print_Nat_Zero"), [Arg(0)])),
-            FitBranch(Pattern(1, [None]), Call(FunName("_print_Nat_Succ"), [Arg(0)])),
-        ])),
-        Print(")"),
-        Return(Create(0, []))
-    ]),
-
-    Fun("add", 0, [
-        Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-            FitBranch(Pattern(0, [None, Pattern(0, [])]), Arg(0)),
-            FitBranch(None, Create(1, [Call(FunName("add"), [Arg(0), Member(Arg(1), 0)])])),
-        ]))
-    ]),
-
-    Fun("mul", 0, [
-        Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-            FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(0, [])),
-            FitBranch(None, Call(FunName("add"), [Call(FunName("mul"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
-        ]))
-    ]),
-
-    Fun("pow", 0, [
-        Return(Fit(Create(0, [Arg(0), Arg(1)]), [
-            FitBranch(Pattern(0, [None, Pattern(0, [])]), Create(1, [Create(0, [])])),
-            FitBranch(None, Call(FunName("mul"), [Call(FunName("pow"), [Arg(0), Member(Arg(1), 0)]), Arg(0)])),
-        ]))
-    ]),
-
-    Fun("main", 2, [
-        Let(0, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
-        Let(1, Create(1, [Create(1, [Create(1, [Create(0, [])])])])),
-        Ignore(Call(FunName("_print_Nat"), [Call(FunName("pow"), [Var(0), Var(1)])])),
-        Return(Var(0))
-    ])
-])
-
-ctx = AsmContext()
-print(program.to_asm(ctx))
+def compile(program: Program) -> str:
+    ctx = AsmContext()
+    return program.to_asm(ctx)

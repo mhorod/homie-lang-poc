@@ -1,23 +1,23 @@
 from lex import lex
 from parsing.parse import parse
-from tree import *
+from tree import ProgramType
 from tokens import Source
-
-def print_tree(tree, indent=0):
-    if isinstance(tree, list):
-        for t in tree:
-            print_tree(t, indent + 1)
-    else:
-        print("  " * indent, tree)
+from typechecker import typecheck
+from ast_to_ll import to_ll
+from compiler import compile
+import sys
 
 with open("main.hom", "r") as f:
     source = Source("main.hom", f.read())
 
 tokens = lex(source)
-print(tokens)
 program = parse(tokens)
-print(program)
-if isinstance(program, Block):
-    print("Result:")
-    print_tree(program)
-    program.exec(Context())
+
+if isinstance(program, ProgramType):
+    ctx = typecheck(program)
+    program = to_ll(program, ctx)
+
+    print(program.pretty_print(), file=sys.stderr)
+    print(compile(program))
+
+    #program.exec()

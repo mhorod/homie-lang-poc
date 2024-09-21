@@ -4,6 +4,8 @@ from typing import *
 from dataclasses import dataclass
 from enum import Enum, auto
 
+import ast
+
 class ASTNodeKind(Enum):
     ProgramType = auto()
     Fit = auto()
@@ -23,12 +25,27 @@ class ASTNodeKind(Enum):
     TypePath = auto()
     ObjPath = auto()
 
-type Type = EnumType | FunctionType
+type Type = EnumType | FunctionType | WildcardType
+
+@dataclass
+class WildcardType:
+    pass
 
 @dataclass
 class ProgramType:
     kind = ASTNodeKind.ProgramType
     items: list
+
+    def exec(self, context=None):
+        context = context if context is not None else Context()
+        for item in self.items:
+            item.exec(context)
+
+@dataclass
+class Write:
+    value: str
+    def __init__(self, value: str):
+        self.value = ast.literal_eval(value)
 
 @dataclass
 class EnumType:
@@ -45,35 +62,57 @@ class TypePath:
     def exec(self, context: Context):
         return Call(self, []).exec(context)
 
+@dataclass
+class EnumConstructor:
+    enum_name: str
+    generics: List[Type]
+    variant_name: str
+
+    def exec(self, ctx):
+        return Call(self, []).exec(ctx) 
 
 @dataclass
-class ObjPath:
-    kind = ASTNodeKind.ObjPath
-    parts: List[str]
+class Var:
+    name: str
+    def exec(self, context: Context):
+        print(f"Searching for object {self.name}")
+        if self.name in context.stack[-1]:
+            return context.stack[-1][self.name]
+        elif self.name in context.functions:
+            return context.functions[self.name]
+        else:
+            print(f"Cannot find name {self.name}")
+
+@dataclass
+class Member:
+    expr: Expr
+    member_name: str
 
     def exec(self, context: Context):
-        print(f"Searching for object {self.parts}")
-        if len(self.parts) == 1:
-            if self.parts[0] in context.functions:
-                return context.functions[self.parts[0]]
-        
-        obj = context.stack[-1][self.parts[0]]
-        for part in self.parts[1:]:
-            obj = obj.children[part]
-        return obj
-        
+        return self.expr.exec(context).children[self.member_name]
 
 @dataclass
 class FunctionType:
     kind = ASTNodeKind.FunctionType
-    left: Type
-    right: Type
+    args: List[Type]
+    ret: Type
 
 @dataclass
 class Arg:
     kind = ASTNodeKind.Arg
     name: str
     type: Type
+
+class Associativity(Enum):
+    NONE = auto()
+    LEFT = auto()
+    RIGHT = auto()
+
+@dataclass
+class Operator:
+    kind: Any
+    precedence: int
+    associativity: Associativity
 
 
 # Enum
@@ -106,7 +145,6 @@ class Pattern:
 
 
 def fits(p: Pattern | Value | None, obj: object):
-    print(f"fitting {p}, {obj}")
     if p is None:
         return True
     elif isinstance(p, Value):
@@ -118,12 +156,9 @@ def fits(p: Pattern | Value | None, obj: object):
             return False
         for (arg_def, val) in zip(obj.branch.args, p.args):
             child = obj.children[arg_def.name]
-            print("is my child stuped: ", val, child, fits(val, child))
             if not fits(val, child):
                 return False
         return True
-    else:
-        print("wtaf this pattern: ", p, type(p))
 
 @dataclass
 class FitBranch:
@@ -134,15 +169,13 @@ class FitBranch:
 @dataclass
 class Fit:
     kind = ASTNodeKind.Fit
-    var: ObjPath 
+    var: Expr 
     branches: List[FitBranch]
 
     def exec(self, context: Context):
         obj = self.var.exec(context)
         for branch in self.branches:
-            print(f"Matching pattern: {branch.left}")
             if fits(branch.left, obj):
-                print("It's a match!")
                 return branch.right.exec(context) 
         
 
@@ -158,7 +191,6 @@ class Return:
     def exec(self, context: Context):
         result = self.expr.exec(context)
         context.exiting_function = True
-        print(f"Returning {result}")
         return result
         
 
@@ -168,7 +200,6 @@ class Block:
     expressions: List[Expr]
 
     def exec(self, context: Context):
-        print("Executing block")
         for expr in self.expressions:
             result = expr.exec(context)
             if context.exiting_function:
@@ -183,7 +214,6 @@ class Let:
     value: Expr
 
     def exec(self, context: Context):
-        print(f"Setting {self.name}'s value")
         context.stack[-1][self.name] = self.value.exec(context)
 
 @dataclass
@@ -192,7 +222,6 @@ class Value:
     val: object
 
     def exec(self, context: Context):
-        print(f"Loading value: {self.val}")
         return self.val
 
 # Fun
@@ -207,28 +236,31 @@ class Fun:
     body: Expr
 
     def exec(self, context: Context):
-        print(f"Creating function: {self.name}")
         context.functions[self.name] = self
         
 
+@dataclass
+class FunInstantiation:
+    name: str
+    generics: List[Type]
+
+    def exec(self, context: Context):
+        return context.functions[self.name]
 
 @dataclass
 class Call:
     kind = ASTNodeKind.Call
-    fun: ObjPath | TypePath
+    fun: Expr | EnumConstructor
     arguments: List[Expr]
 
     def exec(self, context: Context):
-        if isinstance(self.fun, ObjPath):
-            return self.exec_function_call(context)
-        elif isinstance(self.fun, TypePath):
+        if isinstance(self.fun, EnumConstructor):
             return self.exec_create_call(context)
         else:
-            raise Exception(f"Call to invalid object: {self.fun}")
+            return self.exec_function_call(context)
         
         
     def exec_function_call(self, context: Context):
-        print(f"Calling function: {self.fun}")
         frame = {}
         fun_def = self.fun.exec(context)
         for (arg_expr, arg_def) in zip(self.arguments, fun_def.arguments):
@@ -240,15 +272,14 @@ class Call:
         return result
 
     def exec_create_call(self, context: Context):
-        enum_def = context.enums[self.fun.parts[0].name]
-        branch_def = next(b for b in enum_def.branches if b.name == self.fun.parts[1].name)
+        enum_def = context.enums[self.fun.enum_name]
+        branch_def = next(b for b in enum_def.branches if b.name == self.fun.variant_name)
         children = {}
         for (arg_expr, arg_def) in zip(self.arguments, branch_def.args):
             children[arg_def.name] = arg_expr.exec(context)
         
         obj = Object(enum_def, branch_def, children)
 
-        print(f"Creating object: {obj}")
         return obj
 
 

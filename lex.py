@@ -79,7 +79,8 @@ KEYWORD_MAP = {
     "giv" : KeywordKind.KwGiv,
     "mod" : KeywordKind.KwMod,
     "let": KeywordKind.KwLet,
-    "ret": KeywordKind.KwRet
+    "ret": KeywordKind.KwRet,
+    "wrt": KeywordKind.KwWrt
 }
 
 def cook_token(token: RawToken) -> List[TokenKind]:
@@ -120,6 +121,9 @@ def lex_raw_token(cursor: TextCursor):
     elif is_symbolic(cursor):
         text, location = lex_symbolic(cursor)
         return RawToken(text, RawTokenKind.Symbolic, location)
+    elif is_delim(cursor):
+        text, location = lex_delim(cursor)
+        return RawToken(text, RawTokenKind.Symbolic, location)
     elif is_quote(cursor):
         text, location = lex_string_literal(cursor)
         return RawToken(text, RawTokenKind.StringLiteral, location)
@@ -133,9 +137,13 @@ def is_space(cursor: TextCursor):
 def is_alnum(cursor: TextCursor):
     return cursor.peek().isalnum() or cursor.peek() == "_"
 
-SYMBOLS = ".,:;?!<=>+-/*%^|&{}()[]"
+DELIMS = "[](){}"
+SYMBOLS = ".,:;?!<=>+-/*%^|&"
 def is_symbolic(cursor: TextCursor):
     return cursor.peek() in SYMBOLS
+
+def is_delim(cursor: TextCursor):
+    return cursor.peek() in DELIMS
 
 def is_quote(cursor: TextCursor):
     return cursor.peek() == "\""
@@ -153,6 +161,10 @@ def lex_alnum(cursor: TextCursor):
 def lex_symbolic(cursor: TextCursor):
     while cursor.has() and is_symbolic(cursor):
         cursor.advance()
+    return cursor.eaten()
+
+def lex_delim(cursor: TextCursor):
+    cursor.advance()
     return cursor.eaten()
 
 def lex_string_literal(cursor: TextCursor):

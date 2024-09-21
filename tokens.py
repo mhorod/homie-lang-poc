@@ -17,6 +17,7 @@ class KeywordKind(TokenKind, Enum):
     KwMod = auto()
     KwLet = auto()
     KwRet = auto()
+    KwWrt = auto()
 
 class DelimKind(TokenKind, Enum):
     OpenBrace = auto()
@@ -38,6 +39,8 @@ class SymbolKind(TokenKind, Enum):
     Underscore = auto()
     DoubleColon = auto()
     Equals = auto()
+    Plus = auto()
+    Asterisk = auto()
 
 class WhitespaceKind(TokenKind, Enum):
     Whitespace = auto()

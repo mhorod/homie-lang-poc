@@ -17,87 +17,122 @@ dis Bool {
     False
 }
 
+dis Void {
+    Void
+}
+
 fun less(a: Nat, b: Nat) -> Bool {
-    ret fit Pair::Pair a b {
+    let p = Pair[Nat, Nat]::Pair a b;
+    ret fit p {
         Pair _ Zero => Bool::False,
         Pair Zero _ => Bool::True,
-        _ => less a.n b.n
+        Pair (Succ _) (Succ _) => less p.fst.n p.snd.n
     };
 }
 
-fun len(xs: List[T]) -> Nat {
+fun len(xs: List[Nat]) -> Nat {
     ret fit xs {
         Nil => Nat::Zero,
-        _ => Nat::Succ (len xs.xs)
-    };
-}
-
-fun toInt(n: Nat) -> Int {
-    ret fit n {
-        Zero => 0,
-        Succ Zero => 1,
-        Succ (Succ Zero) => 2,
-        Succ (Succ (Succ Zero)) => 3,
-        Succ (Succ (Succ (Succ Zero))) => 4,
-        Succ (Succ (Succ (Succ (Succ Zero)))) => 5,
-        Succ (Succ (Succ (Succ (Succ (Succ Zero))))) => 6,
-        Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))) => 7,
-        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))) => 8,
-        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) => 9,
-        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))))) => 10,
-        _ => "duzo"
+        Cons _ _ => Nat::Succ (len xs.xs)
     };
 }
 
 fun fmap[T, U](f: T -> U, xs: List[T]) -> List[U] {
     ret fit xs {
-        Nil => List::Nil,
-        Cons _ _ => List::Cons (f xs.x) (fmap f xs.xs)
+        Nil => List[U]::Nil,
+        Cons _ _ => List[U]::Cons (f xs.x) (fmap f xs.xs)
     };
 }
 
-fun mapPair[T, U](f: T -> U, p: Pair[T, T]) -> Pair[U, U] {
-    ret Pair::Pair (f p.fst) (f p.snd);
+fun mapPair[T, U](f: T -> U, p: Pair[T, T]::Pair) -> Pair[U, U]::Pair {
+    ret Pair[U, U]::Pair (f p.fst) (f p.snd);
 }
 
-fun listToInt(xs: List[Nat]) -> List[Int] {
-    ret fmap toInt xs;
-}
-
-fun half[T](xs: List[T]) -> Pair[List[T], List[T]] {
+fun half[T](xs: List[T]) -> Pair[List[T], List[T]]::Pair {
     let rest = fit xs {
-        Nil => Pair::Pair List::Nil List::Nil,
-        Cons _ Nil => Pair::Pair xs List::Nil,
+        Nil => Pair[List[T], List[T]]::Pair List[T]::Nil List[T]::Nil,
+        Cons _ Nil => Pair[List[T], List[T]]::Pair xs List[T]::Nil,
         Cons _ (Cons _ _) => half xs.xs.xs
     };
     ret fit xs {
-        Cons _ (Cons _ _) => Pair::Pair (List::Cons xs.x rest.fst) (List::Cons xs.xs.x rest.snd),
+        Cons _ (Cons _ _) => Pair[List[T], List[T]]::Pair (List[T]::Cons xs.x rest.fst) (List[T]::Cons xs.xs.x rest.snd),
         _ => rest
     };
 }
 
-fun merge[T](xs: List[T], ys: List[T]) -> List[T] {
-    ret fit Pair::Pair xs ys {
-        Pair Nil Nil => List::Nil,
-        Pair Nil _ => ys,
-        Pair _ Nil => xs,
-        Pair _ _ => fit less xs.x ys.x {
-            True => List::Cons xs.x (merge xs.xs ys),
-            False => List::Cons ys.x (merge xs ys.xs)
+fun merge[T](xs: List[T], ys: List[T], less: T -> T -> Bool) -> List[T] {
+    let p = Pair[List[T], List[T]]::Pair xs ys;
+    ret fit p {
+        Pair Nil Nil => List[T]::Nil,
+        Pair Nil _ => p.snd,
+        Pair _ Nil => p.fst,
+        Pair (Cons _ _) (Cons _ _) => fit less p.fst.x p.snd.x {
+            True => List[T]::Cons p.fst.x (merge p.fst.xs p.snd less),
+            False => List[T]::Cons p.snd.x (merge p.fst p.snd.xs less)
         }
     };
 }
 
-fun sort[T](xs: List[T]) -> List[T] {
+fun sort[T](xs: List[T], less: T -> T -> Bool) -> List[T] {
     let halves = half xs;
     ret fit xs {
-        Nil => List::Nil,
+        Nil => List[T]::Nil,
         Cons _ Nil => xs,
-        Cons _ _ => merge (sort halves.fst) (sort halves.snd)
+        Cons _ _ => merge (sort halves.fst less) (sort halves.snd less) less,
     };
 }
 
-fun main(a: Int) -> Int {
+dis Dig {
+    Zero,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine
+}
+
+fun nat_to_dig(n: Nat) -> Dig {
+    ret fit n {
+        Zero => Dig::Zero,
+        Succ Zero => Dig::One,
+        Succ (Succ Zero) => Dig::Two,
+        Succ (Succ (Succ Zero)) => Dig::Three,
+        Succ (Succ (Succ (Succ Zero))) => Dig::Four,
+        Succ (Succ (Succ (Succ (Succ Zero)))) => Dig::Five,
+        Succ (Succ (Succ (Succ (Succ (Succ Zero))))) => Dig::Six,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))) => Dig::Seven,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))) => Dig::Eight,
+        Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) => Dig::Nine,
+    };
+}
+
+fun print(n: Dig) -> Void {
+    fit n {
+        Zero => wrt "0",
+        One => wrt "1",
+        Two => wrt "2",
+        Three => wrt "3",
+        Four => wrt "4",
+        Five => wrt "5",
+        Six => wrt "6",
+        Seven => wrt "7",
+        Eight => wrt "8",
+        Nine => wrt "9"
+    };
+    ret Void::Void;
+}
+
+fun print_with_space(n: Dig) -> Void {
+    print n;
+    wrt " ";
+    ret Void::Void;
+}
+
+fun main() {
     let zero = Nat::Zero;
     let one = Nat::Succ zero;
     let two = Nat::Succ one;
@@ -110,19 +145,18 @@ fun main(a: Int) -> Int {
     let nine = Nat::Succ eight;
     let ten = Nat::Succ nine;
 
-    let xs = List::Cons one 
-        (List::Cons five 
-        (List::Cons three 
-        (List::Cons seven 
-        (List::Cons three 
-        (List::Cons three 
-        (List::Cons nine 
-        (List::Cons three 
-        (List::Cons four 
-        (List::Cons three 
-        (List::Nil))))))))));
-    
-    ret listToInt (sort xs);
-}
+    let xs = List[Nat]::Cons one 
+        (List[Nat]::Cons five 
+        (List[Nat]::Cons three 
+        (List[Nat]::Cons seven 
+        (List[Nat]::Cons four 
+        (List[Nat]::Cons three 
+        (List[Nat]::Cons seven 
+        (List[Nat]::Cons four 
+        (List[Nat]::Cons eight 
+        (List[Nat]::Nil)))))))));
 
-main 0
+    let sorted = sort[Nat] xs less;
+    let digified = fmap[Nat, Dig] nat_to_dig sorted;
+    fmap[Dig, Void] print_with_space digified;
+}

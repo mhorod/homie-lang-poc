@@ -59,6 +59,12 @@ class Result[T]:
 
     def Err(errors=None):
         return Result(ResultStatus.Err, None, errors or [])
+
+    def map(self, mapper):
+        if self.status != ResultStatus.Ok:
+            return self
+        else:
+            return ResultStatus.Ok(mapper(self.parsed))
  
 
 class Parser[T](ABC):
@@ -71,6 +77,12 @@ class Parser[T](ABC):
     
     def map(self, mapper):
         return Mapped(self, mapper)
+    
+    def replace(self, value):
+        return Mapped(self, lambda _: value)
+
+    def and_then(self, mapper):
+        return AndThen(self, mapper)
 
 
 class BuilderParser(Parser):
@@ -130,6 +142,18 @@ class Mapped(Parser):
         if result.status == ResultStatus.Ok:
             result.parsed = self.mapper(result.parsed)
         return result
+
+class AndThen(Parser):
+    def __init__(self, parser, mapper):
+        self.parser = parser
+        self.mapper = mapper
+
+    def run(self, cursor, backtracking=False):
+        result = self.parser.run(cursor, backtracking)
+        if result.status == ResultStatus.Ok:
+            return self.mapper(result.parsed)
+        return result
+
 
 
 class Repeat[T](Parser):
@@ -251,6 +275,9 @@ class Interspersed(Parser):
             else:
                 return item
 
+            if len(result) >= self.minimum:
+                backtracking = True
+
             separator = self.separator_parser.run(cursor, backtracking)
             if separator.status == ResultStatus.Backtracked:
                 if len(result) < self.minimum:
@@ -258,8 +285,8 @@ class Interspersed(Parser):
                     return Result.Backtracked(item.errors)
                 else:
                     break
-            else:
-                print(separator)
+            elif separator.status == ResultStatus.Err:
+                return separator
         
         return Result.Ok(result)
 
