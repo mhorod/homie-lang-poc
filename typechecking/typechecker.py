@@ -8,20 +8,25 @@ from tokens import NumberKind, StringKind
 from typechecking.types import *
 from typechecking.subtyping import *
 from typechecking.context import *
+from typechecking.convert import *
+from typechecking.errors import *
 
 def typecheck(program):
-    typechecker = Typechecker()
-    typechecker.ctx.simple_types['Int'] = SimpleType('Int')
-    typechecker.ctx.simple_types['String'] = SimpleType('String')
-
+    simple_types = {
+        'Int' : SimpleType('Int'),
+        'String': SimpleType('String')
+    }
+    typechecker = Typechecker(simple_types)
     typechecker.typecheck(program)
     return typechecker.ctx, typechecker.report
 
 
 class Typechecker:
-    def __init__(self):
-        self.ctx = TypingContext({}, {})
+    def __init__(self, simple_types):
+        self.ctx = TypingContext()
+        self.ctx.simple_types = simple_types
         self.report = ErrorReport()
+        self.type_converter = TypeConverter(self.report, self.ctx)
 
     def typecheck(self, tree):
         if isinstance(tree, ProgramNode):
@@ -36,7 +41,7 @@ class Typechecker:
         elif isinstance(tree, CallNode):
             self.type_call(tree)
         elif isinstance(tree, DisNode):
-            self.type_dis_node(tree)
+            pass
         elif isinstance(tree, FunNode):
             self.type_fun(tree)
         elif isinstance(tree, BlockNode):
@@ -55,12 +60,6 @@ class Typechecker:
         functions = self.find_function_declarations(program)
         self.ctx.functions = functions
 
-        for e in dises.values():
-            self.typecheck_dis_declaration(e)
-
-        for f in functions.values():
-            self.typecheck_function_declaration(f)
-
         for item in program.items:
             self.typecheck(item)
 
@@ -69,9 +68,20 @@ class Typechecker:
         if self.ctx.has_local_var(name):
             return self.ctx.get_local_var_type(name)
         if self.ctx.has_function(name):
-            return self.ctx.get_function(name).ty
-        self.report.error(Error(Message(var.location, f"Unknown variable: {name}")))
-        return ErrorTy()
+            fun_ty = self.ctx.get_function(name)
+            if isinstance(fun_ty, ErrorTy):
+                return fun_ty
+            elif fun_ty.generic_arg_count == 0:
+                return fun_ty.ty
+            else:
+                fun_node = self.ctx.fun_nodes[name][0]
+                expected = len(fun_node.generics.params)
+                actual = 0
+                self.report.error(fun_generic_arguments_mismatch(var.location, fun_node, expected, actual))
+                return ErrorTy()
+        else:
+            self.report.error(unknown_variable(var))
+            return ErrorTy()
 
     def type_let(self, let: LetNode):
         var_type = self.type_expr(let.value)
@@ -79,14 +89,13 @@ class Typechecker:
         return None
 
     def type_fun(self, fun: FunNode):
-        fun_ty = self.ctx.get_function(fun.name.text)
+        fun_ty = self.get_fun_type(fun)
+        if isinstance(fun_ty, ErrorTy):
+            return
         self.ctx.push()
         self.ctx.add_generics(fun.generics)
-        
-        for arg, arg_ty in zip(fun.args, fun_ty.ty.arg_types):
-            self.validate_type(arg_ty)
+        for arg, arg_ty in zip(fun.args, fun_ty.arg_types):
             self.ctx.add_local_var(arg.name.text, arg_ty)
-        self.validate_type(fun_ty.ty.result_type)
         self.typecheck(fun.body)
         self.ctx.pop()
 
@@ -94,14 +103,22 @@ class Typechecker:
         name = fun_inst.name.text
         if self.ctx.has_function(name):
             decl = self.ctx.get_function(name)
-            generics = []
-            for ty in fun_inst.generics:
-                converted = self.convert_type(ty)
-                self.validate_type(converted)
-                generics.append(converted)
-            return self.instantiate_function(name, decl, generics)
+            generics = self.convert_generics(fun_inst.generics)
+            if isinstance(decl, ErrorTy) or any(isinstance(ty, ErrorTy) for ty in generics):
+                return ErrorTy()
+            else:
+                return self.instantiate_function(fun_inst, decl, generics)
         else:
-            raise Exception(f"Unknown function {fun_inst.name}")
+            self.report.error(unknown_function(fun_inst))
+            self.convert_generics(fun_inst.generics)
+            return ErrorTy()
+    
+    def convert_generics(self, generics: List[TypeNode]):
+        converted_generics = []
+        for ty in generics:
+            converted = self.type_converter.convert_type(ty)
+            converted_generics.append(converted)
+        return converted_generics
 
     def type_value(self, expr: Value):
         if isinstance(expr.token.kind, NumberKind):
@@ -113,15 +130,22 @@ class Typechecker:
 
     def type_dis_constructor(self, expr: DisConstructorNode):
         if not self.ctx.has_dis(expr.name.text):
-            raise Exception(f"dis {expr.name} does not exist")
+            self.report.error(dis_does_not_exist(expr.name.location, expr.name.text))
+            return ErrorTy()
         dis_decl = self.ctx.get_dis(expr.name.text)
-        if not dis_decl.has_variant(expr.variant_name.text):
-            raise Exception(f"dis {expr.name} has no variant {expr.variant_name}")
         
         if dis_decl.generic_arg_count != len(expr.generics):
-            raise Exception(f"dis {expr.dis_name} expects {dis_decl.generic_arg_count} generic arguments but got {len(expr.generics)}")
+            expected_count = dis_decl.generic_arg_count
+            actual_count = len(expr.generics)
+            dis_node = self.ctx.dis_nodes[expr.name.text][0]
+            self.report.error(dis_generic_arguments_mismatch(expr.location, dis_node, expected_count, actual_count))
+            return ErrorTy()
+
+        if not dis_decl.has_variant(expr.variant_name.text):
+            self.report.error(dis_has_no_variant(expr.variant_name.location, expr.name.text, expr.variant_name.text))
+            return ErrorTy()
         
-        generics = [self.convert_type(generic) for generic in expr.generics]
+        generics = [self.type_converter.convert_type(generic) for generic in expr.generics]
 
         variant = dis_decl.get_variant(expr.variant_name.text)
         variant_ty = DisTy(expr.name.text, generics, TyPattern(expr.variant_name.text, None))
@@ -160,15 +184,11 @@ class Typechecker:
         else:
             raise Exception(f"Cannot get type of expression {expr}")
 
-    def type_dis_node(self, dis: DisNode):
-        dis_ty = self.ctx.get_dis(dis.name.text)
-        for variant in dis_ty.variants:
-            for arg in variant.args:
-                self.validate_type(arg.ty)
-
     def type_member(self, member: MemberNode):
         expr_ty = self.type_expr(member.expr)
-        if not isinstance(expr_ty, DisTy):
+        if isinstance(expr_ty, ErrorTy):
+            return ErrorTy()
+        elif not isinstance(expr_ty, DisTy):
             raise Exception(f"Cannot get member {member.member_name} on type {expr_ty}")
         elif expr_ty.pattern is None:
             err = Error(Message(member.member_name.location, f"Cannot get member {member.member_name.text} on type {expr_ty}"))
@@ -189,7 +209,7 @@ class Typechecker:
         expr_ty = self.type_expr(expr)
         if not isinstance(expr_ty, DisTy):
             msg = Message(expr.location, f"Expected dis type, got {expr_ty}")
-            print_error(Error(msg))
+            self.report.error(Error(msg))
             return ErrorTy()
 
         ty = self.type_fit_branch(expr, expr_ty, fit.branches[0])
@@ -202,91 +222,34 @@ class Typechecker:
             return self.type_expr(branch.right)
         else:
             pat = self.convert_pattern(branch.left)
+            self.validate_pattern_valid_for_ty(branch.left, fit_expr_ty)
             self.ctx.push()
             self.ctx.add_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
             result = self.type_expr(branch.right)
             self.ctx.pop()
             return result
 
-
-
-    def type_call(self, call: CallNode):
-        fun_ty = self.type_expr(call.fun)
-        arg_tys = [self.type_expr(arg) for arg in call.arguments]
-
-        if isinstance(fun_ty, ErrorTy) or any(isinstance(arg, ErrorTy) for arg in arg_tys):
-            return ErrorTy()
-
-        if not isinstance(fun_ty, FunTy):
-            raise Exception(f"Type {fun_ty} is not callable")
-        if len(fun_ty.arg_types) != len(call.arguments):
-            raise Exception(f"Function {fun_ty} requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
-        
-        
-        for arg_ty, expected_ty in zip(arg_tys, fun_ty.arg_types):
-            if not is_subtype(arg_ty, expected_ty):
-                raise Exception(f"Function expects argument of type {expected_ty} but {arg_ty} was provided")
-        return fun_ty.result_type
-
+    def validate_pattern_valid_for_ty(self, pat: PatternNode | None, ty: Ty):
+        if pat is None:
+            return True
+        if not isinstance(ty, DisTy):
+            self.report.error(cannot_match_pattern_to_non_dis(pat.name.location, pat.name.text, ty))
+            return False
+        dis_decl = self.ctx.get_dis(ty.name)
+        dis_node = self.ctx.dis_nodes[ty.name][0]
+        if not dis_decl.has_variant(pat.name.text):
+            self.report.error(dis_has_no_variant(pat.location, ty.name, pat.name.text))
+            return False
+        variant_decl = dis_decl.get_variant(pat.name.text)
+        variant_node = [v for v in dis_node.variants if v.name.text == pat.name.text][0]
+        if variant_decl.get_arg_count() != len(pat.args):
+            err = variant_argument_count_mismatch(pat.location, dis_node, variant_node, len(pat.args))
+            self.report.error(err)
+            return False
             
-        
-    def convert_type(self, parsed_type: TypeNode):
-        if isinstance(parsed_type, DisTypeNode):
-            if self.ctx.has_generic(parsed_type.name.text):
-                if parsed_type.generics:
-                    raise Exception(f"Type variable {parsed_type.name} cannot be generic")
-                else:
-                    return TyVar(self.ctx.get_generic(parsed_type.name.text))
-            elif parsed_type.name.text in self.ctx.simple_types and not self.ctx.has_dis(parsed_type.name.text):
-                if parsed_type.generics:
-                    raise Exception(f"Type {parsed_type.name} is not generic")
-                return self.ctx.simple_types[parsed_type.name.text]
-            else:
-                return DisTy(parsed_type.name.text, [self.convert_type(gen) for gen in parsed_type.generics], None)
-        elif isinstance(parsed_type, FunctionTypeNode):
-            arg_types = [self.convert_type(arg) for arg in parsed_type.args]
-            ret_type = self.convert_type(parsed_type.ret)
-            return FunTy(arg_types, ret_type)
-        elif isinstance(parsed_type, DisConstructorNode):
-            return DisTy(parsed_type.name.text, [self.convert_type(gen) for gen in parsed_type.generics], TyPattern(parsed_type.variant_name.text, None))
-        elif parsed_type is None:
-            return parsed_type
-        else:
-            raise Exception(f"Cannot convert {parsed_type} into Ty")
-        
-    def convert_pattern(self, p: Pattern | Value | None):
-        # TODO: typecheck pattern with known dis variants
-        if p is None:
-            return None
-        elif isinstance(p, Value):
-            return self.type_value(p)
-        else:
-            return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])
+        for (arg_ty, child_pattern) in zip(variant_decl.get_arg_types(), pat.args):
+            self.validate_pattern_valid_for_ty(child_pattern, arg_ty)
 
-    
-    def find_function_declarations(self, program):
-        function_declarations = {}
-        for item in program.items:
-            if isinstance(item, FunNode):
-                if item.name.text in function_declarations:
-                    raise Exception(f"duplicated function: {item.name}")
-
-                self.ctx.push()
-                self.ctx.add_generics(item.generics)
-                arg_types = [self.convert_type(arg.type) for arg in item.args]
-                ret_type = self.convert_type(item.ret)
-                self.ctx.pop()
-
-                decl = FunctionDeclaration(len(item.generics), FunTy(arg_types, ret_type))
-                function_declarations[item.name.text] = decl
-        return function_declarations
-
-
-    def typecheck_function_declaration(self, decl: FunctionDeclaration):
-        tys = decl.ty.arg_types + [decl.ty.result_type]
-        for ty in tys:
-            self.validate_type(ty)
-        
     def validate_pattern(self, ty: Ty, pattern: TyPattern | None):
         if pattern is None:
             return
@@ -302,57 +265,132 @@ class Typechecker:
             raise Exception(f"Variant {ty.name}::{pattern.name} has {variant_def.get_arg_count()} args, not {len(pattern.children)} arguments")
         for (arg_ty, child_pattern) in zip(variant_def.get_arg_types(), pattern.children):
             self.validate_pattern(arg_ty, child_pattern, self.ctx)
+
+    def type_call(self, call: CallNode):
+        fun_ty = self.type_expr(call.fun)
+        arg_tys = [self.type_expr(arg) for arg in call.arguments]
+
+        if isinstance(fun_ty, ErrorTy) or any(isinstance(arg, ErrorTy) for arg in arg_tys):
+            return ErrorTy()
+        elif isinstance(fun_ty, FunTy) and any(isinstance(arg, ErrorTy) for arg in fun_ty.arg_types):
+            return ErrorTy()
+
+        if not isinstance(fun_ty, FunTy):
+            msg = Message(call.fun.location, f"Type {fun_ty} is not callable")
+            self.report.error(Error(msg))
+            return ErrorTy()
+        if len(fun_ty.arg_types) != len(call.arguments):
+            raise Exception(f"Function {fun_ty} requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
+        
+        
+        for arg_ty, expected_ty in zip(arg_tys, fun_ty.arg_types):
+            if not is_subtype(arg_ty, expected_ty):
+                raise Exception(f"Function expects argument of type {expected_ty} but {arg_ty} was provided")
+        return fun_ty.result_type
+
+        
+    def convert_pattern(self, p: Pattern | Value | None):
+        # TODO: typecheck pattern with known dis variants
+        if p is None:
+            return None
+        elif isinstance(p, Value):
+            return self.type_value(p)
+        else:
+            return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])
+
         
 
-    def validate_type(self,  ty: Ty):
-        if ty is None:
-            return
-        elif isinstance(ty, TyVar):
-            return
-        elif isinstance(ty, FunTy):
-            for arg_ty in ty.arg_types:
-                self.validate_type(arg_ty)
-            self.validate_type(ty.result_type)
-        elif isinstance(ty, DisTy):
-            if not self.ctx.has_dis(ty.name):
-                raise Exception(f"There is no type {ty.name}")
-            for generic_ty in ty.generic_types:
-                self.validate_type(generic_ty)
-            if ty.pattern is None:
-                return
-            dis_def = self.ctx.get_dis(ty.name)
-            if not dis_def.has_variant(ty.pattern.name):
-                err = Error(Message(ty.name.location, f"There is no type {ty.name.text}"))
-                print_error(err)
-            self.validate_pattern(ty, ty.pattern)
-
     def find_dis_declarations(self, program: ProgramNode):
+        dis_nodes = self.find_dis_nodes(program)
+        self.type_converter.dis_nodes = dis_nodes
+        self.ctx.dis_nodes = dis_nodes
         dis_declarations = {}
         for item in program.items:
             if isinstance(item, DisNode):
-                if item.name.text in dis_declarations:
-                    raise Exception(f"Duplicated dis: {item.name}")
-                self.ctx.push()
-                self.ctx.add_generics(item.generic_names)
-                variants = [] 
-                for branch in item.branches:
-                    # if branch.name in variants:
-                    #     raise Exception(f"Duplicated dis branch: {item.name}")
-                    args = [Arg(arg.name.text, self.convert_type(arg.type)) for arg in branch.args]
-                    variants.append(VariantDeclaration(branch.name.text, args))
-                self.ctx.pop()
-                dis_declarations[item.name.text] = DisDeclaration(len(item.generic_names), variants)
+                if len(dis_nodes[item.name.text]) > 1:
+                    dis_declarations[item.name.text] = ErrorTy()
+                else:
+                    self.ctx.push()
+                    self.ctx.add_generics(item.generics)
+                    variants = [] 
+                    for variant in item.variants:
+                        # if branch.name in variants:
+                        #     raise Exception(f"Duplicated dis branch: {item.name}")
+                        args = [Arg(arg.name.text, self.type_converter.convert_type(arg.type)) for arg in variant.args]
+                        variants.append(VariantDeclaration(variant.name.text, args))
+                    self.ctx.pop()
+                    dis_declarations[item.name.text] = DisDeclaration(len(item.generics.params), variants)
         return dis_declarations
 
-    def typecheck_dis_declaration(self, decl: DisDeclaration | SimpleType):
-        if isinstance(decl, SimpleType):
-            return
-        for variant in decl.variants:
-            for arg_type in variant.get_arg_types():
-                self.validate_type(arg_type)
+    def find_dis_nodes(self, program: ProgramNode) -> Dict[str, List[DisNode]]:
+        dis_nodes = {}
+        for item in program.items:
+            if isinstance(item, DisNode):
+                if not self.unique_generics(item.generics):
+                    self.report_duplicated_generics(item.generics)
+                if item.name.text in dis_nodes:
+                    self.report.error(duplicated_dis(item, dis_nodes[item.name.text][0]))
+                    dis_nodes[item.name.text].append(item)
+                else:
+                    dis_nodes[item.name.text] = [item]
+        return dis_nodes
 
 
-    def instantiate_function(self, name: str, decl: FunctionDeclaration, args: List[Ty]):
+    def find_function_declarations(self, program: ProgramNode):
+        fun_nodes = self.find_fun_nodes(program)
+        self.ctx.fun_nodes = fun_nodes
+        function_declarations = {}
+        for name, funs in fun_nodes.items():
+            if len(funs) > 1:
+                function_declarations[name] = ErrorTy()
+            else:
+                fun = funs[0]
+                if self.unique_generics(fun.generics):
+                    decl = FunctionDeclaration(len(fun.generics.params), self.get_fun_type(fun))
+                    function_declarations[name] = decl
+                else:
+                    function_declarations[name] = ErrorTy()
+        return function_declarations
+    
+    def get_fun_type(self, fun: FunNode):
+        if not self.unique_generics(fun.generics):
+            return ErrorTy()
+        self.ctx.push()
+        self.ctx.add_generics(fun.generics)
+        arg_types = [self.type_converter.convert_type(arg.type) for arg in fun.args]
+        ret_type = self.type_converter.convert_type(fun.ret)
+        self.ctx.pop()
+        return FunTy(arg_types, ret_type)
+
+    def unique_generics(self, generics: GenericParamsNode):
+        names = set(name.text for name in generics.params)
+        return len(names) == len(generics.params)
+
+    def report_duplicated_generics(self, generics: GenericParamsNode):
+        names = {}
+        for name in generics.params:
+            if name.text in names:
+                self.report.error(duplicated_generics(name, names[name.text]))
+            else:
+                names[name.text] = name
+
+    def find_fun_nodes(self, program: ProgramNode) -> Dict[str, List[FunNode]]:
+        fun_nodes = {}
+        for item in program.items:
+            if isinstance(item, FunNode):
+                if not self.unique_generics(item.generics):
+                    self.report_duplicated_generics(item.generics)
+                if item.name.text in fun_nodes:
+                    self.report.error(duplicated_function(item, fun_nodes[item.name.text][0]))
+                    fun_nodes[item.name.text].append(item)
+                else:
+                    fun_nodes[item.name.text] = [item]
+        return fun_nodes
+
+    def instantiate_function(self, fun_inst: FunInstNode, decl: FunctionDeclaration, args: List[Ty]):
         if decl.generic_arg_count != len(args):
-            raise Exception(f"Function {name} requires {decl.arg_count} arguments, but got {len(args)}")
+            fun_node = self.ctx.fun_nodes[fun_inst.name.text][0]
+            expected = decl.generic_arg_count
+            actual = len(args)
+            self.report.error(fun_generic_arguments_mismatch(fun_inst.location, fun_node, expected, actual))
         return substitute(decl.ty, args)

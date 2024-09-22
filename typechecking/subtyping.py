@@ -15,7 +15,9 @@ def find_supertype(t1: Ty, t2: Ty) -> Ty:
     '''
     Find type T such that t1 <: T and t2 <: T
     '''
-    if t1 is None and t2 is None:
+    if isinstance(t1, ErrorTy) or isinstance(t2, ErrorTy):
+        return ErrorTy()
+    elif t1 is None and t2 is None:
         return None
     elif t1 is None or t2 is None:
         return ErrorTy()
@@ -35,7 +37,8 @@ def find_supertype(t1: Ty, t2: Ty) -> Ty:
             return DisTy(t1.name, t1.generic_types, find_superpattern(t1.pattern, t2.pattern))
         else:
             return ErrorTy()
-    raise Exception("Unreachable reached! Got non-existent type!")
+    else:
+        raise Exception("Unreachable reached! Got non-existent type!")
 
 def is_subpattern(sub: TyPattern | None, sup: TyPattern | None) -> bool:
     if sub == sup:

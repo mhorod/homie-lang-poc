@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typechecking.types import *
+from tree import GenericParamsNode
 
 class TypingContextFrame:
     def __init__(self):
@@ -23,9 +24,11 @@ class TypingContextFrame:
 
 
 class TypingContext:
-    def __init__(self, dises, functions):
-        self.dises = dises
-        self.functions = functions
+    def __init__(self):
+        self.dis_nodes = {}
+        self.dises = {}
+        self.functions = {}
+        self.fun_nodes = {}
         self.simple_types = {}
         self.stack = [TypingContextFrame()]
 
@@ -51,13 +54,13 @@ class TypingContext:
     def has_dis(self, name) -> bool:
         return name in self.dises
     
-    def get_dis(self, name) -> DisDeclaration:
+    def get_dis(self, name) -> DisDeclaration | ErrorTy:
         return self.dises[name]
 
     def has_function(self, name) -> bool:
         return name in self.functions
 
-    def get_function(self, name) -> FunctionDeclaration:
+    def get_function(self, name) -> FunctionDeclaration | ErrorTy:
         return self.functions[name]
     
     def add_local_var(self, name: str, ty: Ty):
@@ -74,6 +77,6 @@ class TypingContext:
             if frame.has_local_var(name):
                 return frame.get_local_var_type(name)
 
-    def add_generics(self, generics: List[str]):
-        for i, name in enumerate(generics):
-            self.stack[-1].generic_nums_ctx[name] = i
+    def add_generics(self, generics: GenericParamsNode):
+        for i, name in enumerate(generics.params):
+            self.stack[-1].generic_nums_ctx[name.text] = i

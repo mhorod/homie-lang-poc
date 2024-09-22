@@ -27,19 +27,23 @@ def enum_parser():
             .then_drop(kind(KeywordKind.KwDis))
             .commit()
             .then_parse(DisNode.Builder.name, kind(NameKind.EnumName))
-            .then_parse(DisNode.Builder.generic_names, optional(generic_params_parser(), []))
-            .then_parse(DisNode.Builder.branches, variants_parser)
+            .then_parse(DisNode.Builder.generics, optional(generic_params_parser(), []))
+            .then_parse(DisNode.Builder.variants, variants_parser)
     )
 
 def generic_params_parser():
-    return bracketed(Interspersed(kind(NameKind.EnumName).map(get_text), kind(SymbolKind.Comma)))
+    inner_parser = bracketed(interspersed_positive(kind(NameKind.EnumName), kind(SymbolKind.Comma)))
+    return (
+        builder(GenericParamsNode.Builder)
+            .then_parse(GenericParamsNode.Builder.params, optional(inner_parser, []))
+    )
 
 def dis_variant_parser():
     return (
-        builder(DisBranchNode.Builder)
-            .then_parse(DisBranchNode.Builder.name, kind(NameKind.EnumName))
+        builder(DisVariantNode.Builder)
+            .then_parse(DisVariantNode.Builder.name, kind(NameKind.EnumName))
             .commit()
-            .then_parse(DisBranchNode.Builder.args, optional(args_parser(), []))
+            .then_parse(DisVariantNode.Builder.args, optional(args_parser(), []))
     )
 
 def arg_parser():
@@ -91,7 +95,7 @@ def function_parser():
             .then_drop(kind(KeywordKind.KwFun))
             .commit()
             .then_parse(FunNode.Builder.name, kind(NameKind.VarName))
-            .then_parse(FunNode.Builder.generics, optional(generic_params_parser(), []))
+            .then_parse(FunNode.Builder.generics, generic_params_parser())
             .then_parse(FunNode.Builder.args, args_parser())
             .then_parse(FunNode.Builder.ret, optional(return_type_parser, None))
             .then_parse(FunNode.Builder.body, block_parser(expr_parser()))

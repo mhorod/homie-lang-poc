@@ -18,7 +18,7 @@ def to_ll(program: tree.ProgramNode, ctx: TypingContext):
         if isinstance(item, tree.FunNode):
             ll.append(fun_to_ll(item, ctx))
         elif isinstance(item, tree.DisNode):
-            for i, variant in enumerate(item.branches):
+            for i, variant in enumerate(item.variants):
                 ll.append(compiler.constructor(item.name.text, i, len(variant.args)))
     return compiler.Program(ll)
 

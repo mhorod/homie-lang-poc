@@ -154,4 +154,4 @@ def get_line_digits(messages):
 
 def location_text(location):
     line, column = location.begin_line_and_column()
-    return f"--> file {location.source.name} at line {line + 1}, column {column + 1}"
+    return f"--> file {location.source.name}, line {line + 1}, column {column + 1}"

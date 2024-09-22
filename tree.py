@@ -55,8 +55,13 @@ class Write:
 
 @buildable
 @dataclass
+class GenericParamsNode(Node):
+    params: List[Token]
+
+@buildable
+@dataclass
 class DisTypeNode(Node):
-    name: str
+    name: Token
     generics: List[Type]
 
 
@@ -105,7 +110,7 @@ class OperatorNode(Node):
 
 @buildable
 @dataclass
-class DisBranchNode:
+class DisVariantNode:
     location: Location
     name: Token
     args: List[ArgNode]
@@ -114,14 +119,14 @@ class DisBranchNode:
 @buildable
 @dataclass
 class DisNode(Node):
-    name: str
-    generic_names: List[str]
-    branches: List[DisBranchNode]
+    name: Token
+    generics: GenericParamsNode
+    variants: List[DisVariantNode]
 
 @buildable
 @dataclass
 class PatternNode(Node):
-    name: str
+    name: Token
     args: List[Pattern | Value | None]
 
 @buildable
@@ -167,7 +172,7 @@ class Value(Node):
 @dataclass
 class FunNode(Node):
     name: str
-    generics: List[str]
+    generics: GenericParamsNode
     args: List[ArgNode]
     ret: Type
     body: BlockNode

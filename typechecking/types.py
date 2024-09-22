@@ -1,16 +1,30 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
+from tree import TypeNode
 
-type Ty = TyVar | FunTy | DisTy | ErrorTy | None | SimpleType
+type Ty = WildcardTy | TyVar | FunTy | DisTy | ErrorTy | None | SimpleType
+
+@dataclass
+class WildcardTy:
+    
+    def __str__(self):
+        return "?"
 
 @dataclass
 class TyVar:
     index: int
+    name: str
+
+    def __str__(self):
+        return self.name
 
 @dataclass
 class SimpleType:
     name: str
+
+    def __str__(self):
+        return self.name
 
 class ErrorTy:
     pass
@@ -74,6 +88,14 @@ class DisTy:
     name: str
     generic_types: List[Ty]
     pattern: TyPattern | None
+
+    def __str__(self):
+        generics = ", ".join(str(ty) for ty in self.generic_types)
+        if generics:
+            generics = f"[{generics}]"
+        pattern = "" if self.pattern is None else f"::{self.pattern.name}"
+        return f"{self.name}{generics}{pattern}"
+
 
 def substitute(ty: Ty, subst: List[Ty]):
     if isinstance(ty, FunTy):

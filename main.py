@@ -23,13 +23,13 @@ if parsing_result.status == ResultStatus.Ok:
     
     if report.has_errors():
         print_error_report(report)
+    else:
+        program = to_ll(program, ctx)
 
-    program = to_ll(program, ctx)
+        print(program.pretty_print(), file=sys.stderr)
+        #print(compile(program))
 
-    print(program.pretty_print(), file=sys.stderr)
-    #print(compile(program))
-
-    #program.exec()
+        #program.exec()
 else:
     for error in parsing_result.errors:
         print_error(error)

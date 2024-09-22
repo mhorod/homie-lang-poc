@@ -1,4 +1,8 @@
-dis Nat { Zero, Succ(xs: Int) }
-fun len(x: Int) {
-ret x;
+dis Nat { Zero, Succ(n: Int) }
+
+fun f(x: Nat) {
+    ret fit x { 
+        Zero _ => x,
+        Succ (Succ _ )=> x
+    };
 }
