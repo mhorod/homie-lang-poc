@@ -58,6 +58,11 @@ def variant_argument_count_mismatch(location, dis_node, variant_node, actual):
     msg = Message(location, f"Variant {variant_name} takes {expected} {pluralize(expected, Words.ARGUMENTS)} but {actual} {pluralize(actual, Words.WAS)} provided")
     def_msg = Message(variant_node.location, "Defined here")
     return Error(msg, [def_msg])
+
+def function_argument_count_mismatch(location, fun_location, fun_ty, expected, actual):
+    msg = Message(location, f"Function takes {expected} {pluralize(expected, Words.ARGUMENTS)} but {actual} {pluralize(actual, Words.WAS)} provided")
+    explanation = Message(fun_location, f"Function has type {fun_ty}")
+    return Error(msg, [explanation])
     
 
 def cannot_match_pattern_to_non_dis(location, pat_name, ty):
@@ -83,7 +88,41 @@ def duplicated_dis(dis: DisNode, first_defined: DisNode):
     comment = Message(first_defined.name.location, f"First defined here")
     return Error(reason, [comment])
 
+def duplicated_dis_variant(dis_name, variant: DisVariantNode, first_defined: DisVariantNode):
+    reason = Message(variant.name.location,  f"Duplicated variant {variant.name.text} of dis {dis_name}")
+    comment = Message(first_defined.name.location, f"First defined here")
+    return Error(reason, [comment])
+
 def duplicated_generics(name: Token, first_defined: Token):
     reason = Message(name.location, f"Duplicated generic parameter: {name.text}")
     comment = Message(first_defined.location, "First defined here")
     return Error(reason, [comment])
+
+def expected_dis_type(location: Location, found):
+    msg = Message(location, f"Expected dis type, got {found}")
+    return Error(msg)
+
+
+def type_is_not_callable(location: Location, ty):
+    msg = Message(location, f"Type {ty} is not callable")
+    return Error(msg)
+
+def function_expects_arg_of_type(location, expected, actual, fun_location, fun_ty):
+    msg = Message(location, f"Function expects argument of type {expected} but {actual} was provided")
+    explanation = Message(fun_location, f"Function has type {fun_ty}")
+    return Error(msg, [explanation])
+
+
+def cannot_get_member_on_non_dis_type(location, member_name, ty):
+    msg = Message(location, f"Cannot get member {member_name} on non-dis type {ty}")
+    return Error(msg)
+
+def cannot_get_member_on_non_variant_type(location, member_name, ty, expr_location):
+    msg = Message(location, f"Cannot get member {member_name} on non-variant type {ty}")
+    help_msg = Message(expr_location, f"help: Consider applying fit to this expression" )
+    return Error(msg, [help_msg])
+
+def variant_has_no_member(location, member_name, ty, variant_node):
+    msg = Message(location, f"Variant {ty} has no member {member_name}")
+    comment = Message(variant_node.location, "Variant defined here")
+    return Error(msg, [comment])

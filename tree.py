@@ -123,6 +123,11 @@ class DisNode(Node):
     generics: GenericParamsNode
     variants: List[DisVariantNode]
 
+    def get_variant_node(self, name: str):
+        for v in self.variants:
+            if v.name.text == name:
+                return v
+
 @buildable
 @dataclass
 class PatternNode(Node):

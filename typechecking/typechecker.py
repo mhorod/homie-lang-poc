@@ -52,7 +52,7 @@ class Typechecker:
         elif isinstance(tree, RetNode):
             self.type_expr(tree.expr)
         else:
-            raise Exception(f"Cannot type {tree}")
+            self.type_expr(tree)
 
     def typecheck_program(self, program: ProgramNode):
         dises = self.find_dis_declarations(program)
@@ -189,16 +189,23 @@ class Typechecker:
         if isinstance(expr_ty, ErrorTy):
             return ErrorTy()
         elif not isinstance(expr_ty, DisTy):
-            raise Exception(f"Cannot get member {member.member_name} on type {expr_ty}")
+            self.report.error(cannot_get_member_on_non_dis_type(member.location, member.member_name.text, expr_ty))
+            return ErrorTy()
         elif expr_ty.pattern is None:
-            err = Error(Message(member.member_name.location, f"Cannot get member {member.member_name.text} on type {expr_ty}"))
-            print_error(err)
-            raise Exception(f"Cannot get member {member.member_name} on type {expr_ty}")
+            err = cannot_get_member_on_non_variant_type(
+                member.location, 
+                member.member_name.text, 
+                expr_ty, 
+                member.expr.location)
+            self.report.error(err)
+            return ErrorTy()
         else:
             dis_decl = self.ctx.get_dis(expr_ty.name)
             variant = dis_decl.get_variant(expr_ty.pattern.name)
+            variant_node = self.ctx.dis_nodes[expr_ty.name][0].get_variant_node(expr_ty.pattern.name)
             if not variant.has_arg(member.member_name.text):
-                raise Exception(f"Variant {variant} has no member {member.member_name}")
+                self.report.error(variant_has_no_member(member.location, member.member_name.text, expr_ty, variant_node))
+                return ErrorTy()
             arg_ty = deepcopy(substitute(variant.get_arg(member.member_name.text).ty, expr_ty.generic_types))
             if isinstance(arg_ty, DisTy) and expr_ty.pattern.children:
                 arg_ty.pattern = expr_ty.pattern.children[variant.arg_index(member.member_name.text)]
@@ -207,9 +214,11 @@ class Typechecker:
     def type_fit(self, fit: FitNode):
         expr = fit.expr
         expr_ty = self.type_expr(expr)
+        if isinstance(expr_ty, ErrorTy):
+            return ErrorTy()
+
         if not isinstance(expr_ty, DisTy):
-            msg = Message(expr.location, f"Expected dis type, got {expr_ty}")
-            self.report.error(Error(msg))
+            self.report.error(expected_dis_type(expr.location, expr_ty))
             return ErrorTy()
 
         ty = self.type_fit_branch(expr, expr_ty, fit.branches[0])
@@ -248,23 +257,8 @@ class Typechecker:
             return False
             
         for (arg_ty, child_pattern) in zip(variant_decl.get_arg_types(), pat.args):
+            arg_ty = substitute(arg_ty, ty.generic_types)
             self.validate_pattern_valid_for_ty(child_pattern, arg_ty)
-
-    def validate_pattern(self, ty: Ty, pattern: TyPattern | None):
-        if pattern is None:
-            return
-        if not isinstance(ty, DisTy):
-            raise Exception(f"Cannot match non-dis type to {pattern.name}!")
-        dis_def = self.ctx.get_dis(ty.name)
-        if not dis_def.has_variant(pattern.name):
-            raise Exception(f"dis {ty.name} has no variant {pattern.name}")
-        variant_def = dis_def.get_variant(pattern.name)
-        if pattern.children is None:
-            return
-        if variant_def.get_arg_count() != len(pattern.children):
-            raise Exception(f"Variant {ty.name}::{pattern.name} has {variant_def.get_arg_count()} args, not {len(pattern.children)} arguments")
-        for (arg_ty, child_pattern) in zip(variant_def.get_arg_types(), pattern.children):
-            self.validate_pattern(arg_ty, child_pattern, self.ctx)
 
     def type_call(self, call: CallNode):
         fun_ty = self.type_expr(call.fun)
@@ -276,17 +270,26 @@ class Typechecker:
             return ErrorTy()
 
         if not isinstance(fun_ty, FunTy):
-            msg = Message(call.fun.location, f"Type {fun_ty} is not callable")
-            self.report.error(Error(msg))
+            self.report.error(type_is_not_callable(call.fun.location, fun_ty))
             return ErrorTy()
+
         if len(fun_ty.arg_types) != len(call.arguments):
-            raise Exception(f"Function {fun_ty} requires {len(fun_ty.arg_types)} arguments but {len(call.arguments)} were provided")
+            expected = len(fun_ty.arg_types)
+            actual = len(call.arguments)
+            err = function_argument_count_mismatch(call.location, call.fun.location, fun_ty, expected, actual)
+            self.report.error(err)
         
         
-        for arg_ty, expected_ty in zip(arg_tys, fun_ty.arg_types):
+        error = False
+        for arg, arg_ty, expected_ty in zip(call.arguments, arg_tys, fun_ty.arg_types):
             if not is_subtype(arg_ty, expected_ty):
-                raise Exception(f"Function expects argument of type {expected_ty} but {arg_ty} was provided")
-        return fun_ty.result_type
+                err = function_expects_arg_of_type(arg.location, expected_ty, arg_ty, call.fun.location, fun_ty)
+                self.report.error(err)
+                error = True
+        if error:
+            return ErrorTy()
+        else:
+            return fun_ty.result_type
 
         
     def convert_pattern(self, p: Pattern | Value | None):
@@ -312,14 +315,22 @@ class Typechecker:
                 else:
                     self.ctx.push()
                     self.ctx.add_generics(item.generics)
-                    variants = [] 
+                    variant_nodes = {}
+                    variants = []
+                    error = False
                     for variant in item.variants:
-                        # if branch.name in variants:
-                        #     raise Exception(f"Duplicated dis branch: {item.name}")
-                        args = [Arg(arg.name.text, self.type_converter.convert_type(arg.type)) for arg in variant.args]
-                        variants.append(VariantDeclaration(variant.name.text, args))
+                        if variant.name.text in variant_nodes:
+                            error = True
+                            self.report.error(duplicated_dis_variant(item.name.text, variant, variant_nodes[variant.name.text]))
+                        else:
+                            args = [Arg(arg.name.text, self.type_converter.convert_type(arg.type)) for arg in variant.args]
+                            variants.append(VariantDeclaration(variant.name.text, args))
+                            variant_nodes[variant.name.text] = variant
                     self.ctx.pop()
-                    dis_declarations[item.name.text] = DisDeclaration(len(item.generics.params), variants)
+                    if error:
+                        dis_declarations[item.name.text] = ErrorTy()
+                    else:
+                        dis_declarations[item.name.text] = DisDeclaration(len(item.generics.params), variants)
         return dis_declarations
 
     def find_dis_nodes(self, program: ProgramNode) -> Dict[str, List[DisNode]]:

@@ -78,6 +78,15 @@ class FunTy:
     arg_types: List[Ty]
     result_type: Ty
 
+    def __str__(self) -> str:
+        args = [f"({arg})" if isinstance(arg, FunTy) else f"{arg}" for arg in self.arg_types ]
+        args = " -> ".join(args)
+        res = f"({self.result_type})" if isinstance(self.result_type, FunTy) else self.result_type
+        if self.result_type is None:
+            res = "Void"
+        if len(self.arg_types) == 0:
+            args = "()"
+        return f"{args} -> {res}"
 @dataclass
 class TyPattern:
     name: str

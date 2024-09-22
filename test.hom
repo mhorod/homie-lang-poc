@@ -1,8 +1,3 @@
-dis Nat { Zero, Succ(n: Int) }
-
-fun f(x: Nat) {
-    ret fit x { 
-        Zero _ => x,
-        Succ (Succ _ )=> x
-    };
+dis Nat { A, A }
+fun g(x: Nat) {
 }
