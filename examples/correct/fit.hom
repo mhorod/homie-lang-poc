@@ -1,0 +1,25 @@
+// fit.hom
+
+dis Nat {
+    Zero,
+    Succ(n: Nat)
+}
+
+fun f(n: Nat) -> Nat {
+    // Dis variants can be matched using `fit` expression
+    ret fit n {
+        Zero => n,
+        Succ _ => n.n
+    };
+}
+
+fun accept_succ(n: Nat::Succ) {}
+fun g(n: Nat) {
+    // After fitting a variable it has the variant type in the branch
+    fit n {
+        Zero => Nat::Zero,
+        Succ _ => accept_succ(n) // Here n has type Nat::Succ
+    };
+}
+
+fun main() {}

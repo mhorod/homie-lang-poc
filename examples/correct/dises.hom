@@ -1,0 +1,25 @@
+// dises.hom
+
+// Dis (from disjoint union) is an enum equivalent in Homie
+dis Foo { A, B, C } // dis Foo with three variants: A, B, C
+
+// Dis variants can take arguments
+dis Bar {
+    A(a: Int, b: Int),
+    F(f: Int -> Int)
+}
+
+// Dis can be recursive
+dis Nat {
+    Zero,
+    Succ(n: Nat)
+}
+
+// Dis can be created by calling constructor
+fun create_zero() -> Nat { ret Nat::Zero; }
+fun create_one(x: Nat) -> Nat { ret Nat::Succ Nat::Zero; }
+
+// Variants of a dis have their own type
+fun accept_bar_a(x: Bar::A) {}
+
+fun main() {}

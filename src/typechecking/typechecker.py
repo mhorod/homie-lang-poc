@@ -14,7 +14,8 @@ from typechecking.errors import *
 def typecheck(program):
     simple_types = {
         'Int' : SimpleType('Int'),
-        'String': SimpleType('String')
+        'String': SimpleType('String'),
+        'Void': SimpleType('Void')
     }
     typechecker = Typechecker(simple_types)
     typechecker.typecheck(program)
@@ -120,7 +121,7 @@ class Typechecker:
             converted_generics.append(converted)
         return converted_generics
 
-    def type_value(self, expr: Value):
+    def type_value(self, expr: ValueNode):
         if isinstance(expr.token.kind, NumberKind):
             return SimpleType('Int')
         elif isinstance(expr.token.kind, StringKind):
@@ -160,7 +161,7 @@ class Typechecker:
         if isinstance(expr, FunInstNode):
             expr.ty = self.type_function_instantiation(expr)
             return expr.ty
-        elif isinstance(expr, Value):
+        elif isinstance(expr, ValueNode):
             expr.ty = self.type_value(expr)
             return expr.ty
         elif isinstance(expr, DisConstructorNode):
@@ -292,11 +293,11 @@ class Typechecker:
             return fun_ty.result_type
 
         
-    def convert_pattern(self, p: Pattern | Value | None):
+    def convert_pattern(self, p: Pattern | ValueNode | None):
         # TODO: typecheck pattern with known dis variants
         if p is None:
             return None
-        elif isinstance(p, Value):
+        elif isinstance(p, ValueNode):
             return self.type_value(p)
         else:
             return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])

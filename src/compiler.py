@@ -8,7 +8,18 @@ type Expr = Create | Fit | FunName | Call | Var | Arg | Member
 
 type Statement = Let | Return
 
+@dataclass
+class IntValue:
+    """
+    Loads value to rax
+    """
+    value: int
+    
+    def to_asm(self, ctx: AsmContext):
+        return f"mov rax, {self.value}"
 
+    def pretty_print(self, indent=1):
+        return f"{self.value}"
 
 @dataclass
 class FitBranch:

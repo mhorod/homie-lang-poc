@@ -12,7 +12,7 @@ def program_parser():
     return (
         sequence()
             .then_parse(repeat(item_parser()))
-            .then_drop(ExpectEof())
+            .then_drop(kind(EofKind.Eof))
             .map(flatten)
             .map(ProgramNode)
     )
@@ -236,8 +236,8 @@ def catchall_parser():
 
 def value_parser():
     return (
-        builder(Value.Builder)
-        .then_parse(Value.Builder.token, kind(NumberKind.Integer) | kind(StringKind.String) | fail("value"))
+        builder(ValueNode.Builder)
+        .then_parse(ValueNode.Builder.token, kind(NumberKind.Integer) | kind(StringKind.String) | fail("value"))
     )
 
 def dis_constructor_parser(type_parser=type_parser()):

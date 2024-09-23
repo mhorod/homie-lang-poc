@@ -1,0 +1,10 @@
+// generics.hom
+
+// Dises can be generic
+dis Optional[T] {
+    None,
+    Some(value: T)
+}
+
+// Functions can be generic
+fun f[T](x: T) -> Optional[T] { ret Optional[T]::Some x; }

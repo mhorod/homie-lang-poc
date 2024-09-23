@@ -109,6 +109,8 @@ def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
         return enum_cons_to_ll(expr, ctx)
     elif isinstance(expr, tree.Write):
         return write_to_ll(expr, ctx)
+    elif isinstance(expr, tree.ValueNode):
+        return value_to_ll(expr, ctx)
     else:
         raise Exception(f"Unexpected tree node: {expr}")
 
@@ -133,3 +135,5 @@ def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext):
 
     
 
+def value_to_ll(val: tree.ValueNode, ty_ctx: TypingContext):
+    return compiler.IntValue(val.token.text)

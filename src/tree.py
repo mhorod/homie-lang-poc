@@ -170,7 +170,7 @@ class LetNode(Node):
 
 @buildable
 @dataclass
-class Value(Node):
+class ValueNode(Node):
     token: Token
 
 @buildable

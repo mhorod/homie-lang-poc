@@ -59,6 +59,9 @@ class NameKind(TokenKind, Enum):
 class ErrorKind(TokenKind, Enum):
     Error = auto()
 
+class EofKind(TokenKind, Enum):
+    Eof = auto()
+
 SYMBOL_MAP = {
     ":" : SymbolKind.Colon,
     ";" : SymbolKind.Semicolon,

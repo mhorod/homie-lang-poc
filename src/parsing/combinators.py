@@ -33,12 +33,6 @@ class TokenCursor:
     def prev(self):
         return self.tokens[self.index - 1]
 
-    def eof(self):
-        return Token("<eof>", None, self.eof_location())
-
-    def eof_location(self):
-        loc = self.tokens[-1].location
-        return Location(loc.source, loc.end, loc.end + 1)
 
 class ResultStatus(Enum):
     '''
@@ -336,17 +330,6 @@ class Unreachable(Parser):
 class Nothing(Parser):
     def run(self, cursor, backtracking):
         return Result.Ok(None)
-
-class ExpectEof(Parser):
-    def run(self, cursor, backtracking):
-        if not cursor.has():
-            return Result.Ok(None)
-        elif backtracking:
-            return Result.Backtracked()
-        else:
-            found_token = cursor.peek()
-            msg = Message(found_token.location, f"Expected <eof>, found {found_token.text}")
-            return Result.Err([Error(msg)])
 
 class Fail(Parser):
     def __init__(self, expected):

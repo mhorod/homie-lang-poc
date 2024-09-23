@@ -74,7 +74,9 @@ def build_node(left, operator, right):
             msg = Message(right.location, f"Expected member name")
             return Result.Err([Error(msg)])
     else:
-        call_node = CallNode(VarNode(operator.name), [left, right])
+        op = VarNode(operator.name)
+        op.location = operator.location
+        call_node = CallNode(op, [left, right])
         call_node.location = Location.wrap(left.location, right.location)
         return Result.Ok(call_node)
 

@@ -31,6 +31,9 @@ class Source:
         spans.append(Location(self, self.line_beginnings[end_line], end))
         return spans
 
+    def eof(self):
+        return Location(self, len(self.text), len(self.text) + 1)
+
 @dataclass
 class Location:
     source: Source
