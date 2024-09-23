@@ -2,9 +2,9 @@ from typing import *
 from enum import Enum, auto
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-
+from tokens import Token, KIND_TO_STR
 from source import *
-
+from error_reporting import *
 
 class TokenCursor:
     def __init__(self, tokens, index=0):
@@ -15,8 +15,10 @@ class TokenCursor:
         return self.index < len(self.tokens)
 
     def peek(self):
+        if not self.has():
+            return self.eof()
         return self.tokens[self.index]
-
+    
     def take(self):
         result = self.tokens[self.index]
         self.index += 1
@@ -28,11 +30,9 @@ class TokenCursor:
     def restore(self, index):
         self.index = index
 
+    def prev(self):
+        return self.tokens[self.index - 1]
 
-@dataclass
-class Error:
-    location: Location
-    message: str
 
 class ResultStatus(Enum):
     '''
@@ -116,6 +116,7 @@ class BuilderParser(Parser):
 
     def run(self, cursor, backtracking):
         builder = self.builder()
+        begin = cursor.peek().location
         for part in self.parts:
             if isinstance(part, BuilderParser.Commit):
                 backtracking = False
@@ -125,8 +126,8 @@ class BuilderParser(Parser):
                     return result
                 elif isinstance(part, BuilderParser.Parse):
                     part.builder_method(builder, result.parsed)
-
-        return Result.Ok(builder.build())
+        end = cursor.prev().location
+        return Result.Ok(builder.build(Location.wrap(begin, end)))
 
     def __repr__(self):
         return f"BuilderParser({self.builder})"
@@ -206,8 +207,9 @@ class SequenceParser[T](Parser[T]):
         def append(self, item):
             self.list.append(item)
 
-        def build(self):
+        def build(self, location):
             return self.list
+
     def __init__(self):
         self.builder = BuilderParser(SequenceParser.ListBuilder)
 
@@ -300,13 +302,11 @@ class ExpectKind(Parser):
             return Result.Ok(cursor.take())
         elif backtracking:
             return Result.Backtracked() 
-        elif not cursor.has():
-            return Result.Err(f"expected {self.kind}, found EOF")
         else:
             found_token = cursor.peek()
-            line, column = found_token.location.line_and_column()
-            return Result.Err(f"expected {self.kind}, found {found_token.kind} at line {line}, column {column}")
-
+            kind_name = KIND_TO_STR[self.kind]
+            msg = Message(found_token.location, f"expected {kind_name}, found {found_token.text}")
+            return Result.Err([Error(msg)])
     def __repr__(self):
         return f"Expect({self.kind})"
 
@@ -323,22 +323,13 @@ class Unreachable(Parser):
     def __init__(self, msg: str=""):
         self.msg = msg
     def run(self, cursor, backtracking):
-        return Result.Err(f"This should be unreachable ({self.msg})")
+        found_token = cursor.peek()
+        msg = Message(found_token.location, f"Parser has reached an unreachable state")
+        return Result.Err([Error(msg)])
     
 class Nothing(Parser):
     def run(self, cursor, backtracking):
         return Result.Ok(None)
-
-class ExpectEof(Parser):
-    def run(self, cursor, backtracking):
-        if not cursor.has():
-            return Result.Ok(None)
-        elif backtracking:
-            return Result.Backtracked()
-        else:
-            found_token = cursor.peek()
-            line, column = found_token.location.line_and_column()
-            return Result.Err(f"expected EOF, found {found_token} at line {line}, column {column}")
 
 class Fail(Parser):
     def __init__(self, expected):
@@ -347,12 +338,9 @@ class Fail(Parser):
     def run(self, cursor, backtracking):
         if backtracking:
             return Result.Backtracked()
-        if cursor.has():
-            found_token = cursor.peek()
-            line, column = found_token.location.line_and_column()
-            return Result.Err(f"Expected {self.expected}, found {found_token} at line {line}, column {column}")
-        else:
-            return Result.Err(f"Expected {self.expected}, found EOF")
+        found_token = cursor.peek()
+        msg = Message(found_token.location, f"Expected {self.expected}, found {found_token.text}")
+        return Result.Err([Error(msg)])
 
 class Not(Parser):
     def __init__(self, parser):
@@ -366,13 +354,16 @@ class Not(Parser):
                 cursor.restore(cursor_state)
                 return Result.Backtracked()
             else:
-                return Result.Err("Expected parser to fail")
+                found_token = cursor.peek()
+                msg = Message(found_token.location, f"Unexpected token {found_token.text}")
+                return Result.Err([Error(msg)])
         else:
             return Result.Ok(None)
+        
+class Supply(Parser):
+    def __init__(self, supplier):
+        self.supplier = supplier
 
-def interspersed(value_parser, separator_parser):
-    return Interspersed(value_parser, separator_parser)
+    def run(self, cursor, backtracking):
+        return Result.Ok(self.supplier())
 
-
-def interspersed_positive(value_parser, separator_parser):
-    return Interspersed(value_parser, separator_parser, minimum=1)

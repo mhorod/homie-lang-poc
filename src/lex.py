@@ -50,43 +50,15 @@ def lex(source: Source) -> List[Token]:
     while cursor.has():
         raw_token = lex_raw_token(cursor)
         tokens += cook_token(raw_token)
+
+    tokens.append(Token("<eof>", EofKind.Eof, source.eof()))
     return tokens
 
-SYMBOL_MAP = {
-    ":" : SymbolKind.Colon,
-    ";" : SymbolKind.Semicolon,
-    "," : SymbolKind.Comma,
-    "." : SymbolKind.Dot,
-    "?" : SymbolKind.QuestionMark,
-    "!" : SymbolKind.ExclamationMark,
-    "->": SymbolKind.Arrow,
-    "=>": SymbolKind.FatArrow,
-    "_": SymbolKind.Underscore,
-    "::": SymbolKind.DoubleColon,
-    "=" : SymbolKind.Equals,
-    "(": DelimKind.OpenParen,
-    ")": DelimKind.CloseParen,
-    "{": DelimKind.OpenBrace,
-    "}": DelimKind.CloseBrace,
-    "[": DelimKind.OpenBracket,
-    "]": DelimKind.CloseBracket
-}
-
-KEYWORD_MAP = {
-    "fun" : KeywordKind.KwFun,
-    "fit" : KeywordKind.KwFit,
-    "dis" : KeywordKind.KwDis,
-    "giv" : KeywordKind.KwGiv,
-    "mod" : KeywordKind.KwMod,
-    "let": KeywordKind.KwLet,
-    "ret": KeywordKind.KwRet,
-    "wrt": KeywordKind.KwWrt
-}
 
 def cook_token(token: RawToken) -> List[TokenKind]:
     if token.text in SYMBOL_MAP:
         return [Token(token.text, SYMBOL_MAP[token.text], token.location)]
-    elif token.kind == RawTokenKind.Whitespace:
+    elif token.kind == RawTokenKind.Whitespace or token.kind == RawTokenKind.Comment:
         return []
     elif token.kind == RawTokenKind.Alphanumeric:
         if token.text in KEYWORD_MAP:
@@ -115,6 +87,12 @@ def lex_raw_token(cursor: TextCursor):
     if is_space(cursor):
         text, location = lex_space(cursor)
         return RawToken(text, RawTokenKind.Whitespace, location)
+    elif is_inline_comment(cursor):
+        text, location = lex_inline_comment(cursor)
+        return RawToken(text, RawTokenKind.Comment, location)
+    elif is_multiline_comment(cursor):
+        text, location = lex_multiline_comment(cursor)
+        return RawToken(text, RawTokenKind.Comment, location)
     elif is_alnum(cursor):
         text, location = lex_alnum(cursor)
         return RawToken(text, RawTokenKind.Alphanumeric, location)
@@ -148,6 +126,12 @@ def is_delim(cursor: TextCursor):
 def is_quote(cursor: TextCursor):
     return cursor.peek() == "\""
 
+def is_inline_comment(cursor: TextCursor):
+    return cursor.peek(2) == "//"
+
+def is_multiline_comment(cursor: TextCursor):
+    return cursor.peek(2) == "/*"
+
 def lex_space(cursor: TextCursor):
     while cursor.has() and is_space(cursor):
         cursor.advance()
@@ -173,4 +157,28 @@ def lex_string_literal(cursor: TextCursor):
         cursor.advance()
     if cursor.has():
         cursor.advance()
+    return cursor.eaten()
+
+def lex_inline_comment(cursor: TextCursor):
+    while cursor.has() and cursor.peek() != "\n":
+        cursor.advance()
+    if cursor.has():
+        cursor.advance()
+    return cursor.eaten()
+        
+
+def lex_multiline_comment(cursor: TextCursor):
+    open_comments = 0
+    while cursor.has():
+        if cursor.peek(2) == "/*":
+            open_comments += 1
+            cursor.advance(2)
+        elif cursor.peek(2) == "*/":
+            cursor.advance(2)
+            open_comments -= 1
+        else:
+            cursor.advance(1)
+        
+        if open_comments == 0:
+            break
     return cursor.eaten()

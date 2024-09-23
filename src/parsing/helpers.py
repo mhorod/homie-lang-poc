@@ -64,3 +64,15 @@ def fail(message):
 
 def not_parse(parser):
     return Not(parser)
+
+
+def interspersed(value_parser, separator_parser):
+    return Interspersed(value_parser, separator_parser)
+
+
+def interspersed_positive(value_parser, separator_parser):
+    return Interspersed(value_parser, separator_parser, minimum=1)
+
+
+def supply(supplier):
+    return Supply(supplier)

@@ -1,0 +1,14 @@
+// comments.hom
+
+// Homie Lang allows two types of comments:
+
+// 1. Inline comments
+
+/*
+    2. multiline comments
+    /*
+        Which can be nested
+    */
+*/
+
+fun main(){}

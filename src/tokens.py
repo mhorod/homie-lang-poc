@@ -59,6 +59,51 @@ class NameKind(TokenKind, Enum):
 class ErrorKind(TokenKind, Enum):
     Error = auto()
 
+class EofKind(TokenKind, Enum):
+    Eof = auto()
+
+SYMBOL_MAP = {
+    ":" : SymbolKind.Colon,
+    ";" : SymbolKind.Semicolon,
+    "," : SymbolKind.Comma,
+    "." : SymbolKind.Dot,
+    "?" : SymbolKind.QuestionMark,
+    "!" : SymbolKind.ExclamationMark,
+    "->": SymbolKind.Arrow,
+    "=>": SymbolKind.FatArrow,
+    "_": SymbolKind.Underscore,
+    "::": SymbolKind.DoubleColon,
+    "=" : SymbolKind.Equals,
+
+    "+": SymbolKind.Plus,
+    "*": SymbolKind.Asterisk,
+
+    "(": DelimKind.OpenParen,
+    ")": DelimKind.CloseParen,
+    "{": DelimKind.OpenBrace,
+    "}": DelimKind.CloseBrace,
+    "[": DelimKind.OpenBracket,
+    "]": DelimKind.CloseBracket,
+}
+
+KEYWORD_MAP = {
+    "fun" : KeywordKind.KwFun,
+    "fit" : KeywordKind.KwFit,
+    "dis" : KeywordKind.KwDis,
+    "giv" : KeywordKind.KwGiv,
+    "mod" : KeywordKind.KwMod,
+    "let": KeywordKind.KwLet,
+    "ret": KeywordKind.KwRet,
+    "wrt": KeywordKind.KwWrt
+}
+
+KIND_TO_STR = {
+    **{ kind : text for text, kind in KEYWORD_MAP.items() },
+    **{ kind : text for text, kind in SYMBOL_MAP.items() },
+    NameKind.VarName: "lowercase identifier",
+    NameKind.EnumName: "uppercase identifier"
+}
+
 @dataclass
 class Token:
     text: str

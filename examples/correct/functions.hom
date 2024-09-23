@@ -1,0 +1,27 @@
+// functions.hom
+
+// Functions in Homie are defined with `fun` keyword followed by list of arguments and return type
+// Value is returned by using `ret` keyword
+fun f(x: Int, y: Int) -> Int { ret x; }
+
+// Arguments are optional
+fun g() -> Int { ret 42; }
+
+// Return type is also optional - in such case the return type is Void
+// The following two are equivalent:
+fun h1() {}
+fun h2() -> Void {}
+
+// Functions can be called
+fun calls_f() -> Int {
+    ret f 1 2;
+}
+
+// Functions can be passed as arguments to other functions
+fun apply(f: Int -> Int, x: Int) -> Int {
+    ret f x;
+}
+
+
+// Every Homie program requires main function
+fun main() {}
