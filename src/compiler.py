@@ -173,6 +173,7 @@ class Call:
                 push rax
             ''' for arg in reversed(self.args))}
             {self.function.to_asm(ctx)}
+            mov rdi, rsp
             call rax
             add rsp, {len(self.args) * 8}
             pop rbp
@@ -212,8 +213,10 @@ class Program:
         result = f"""
             section .text
             global main
-            extern _make_obj
-            extern heap
+            extern _make_obj0
+            extern _make_obj1
+            extern _make_obj3
+            extern _make_obj7
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
@@ -285,24 +288,36 @@ def constructor_name(enum_name: str, variant_id: int):
     return f"__{enum_name}__{variant_id}"
 
 @dataclass
+class IntValue:
+    value: int
+    def to_asm(self, ctx: AsmContext):
+        return f"""
+            mov rax, {self.value}
+        """
+
+@dataclass
 class Create:
     """creates object and puts it in rax"""
     type_id: int
     children: List[Expr]
 
     def to_asm(self, ctx: AsmContext):
-        create_children = ""
-        for child in self.children:
-            create_children += f"""
-                {child.to_asm(ctx)}
-                push rax
-            """
-        return f"""
-                {create_children}
-                push qword {len(self.children)}
-                push qword {self.type_id}
-                call _make_obj
-            """
+        if len(self.children) == 0:
+            return Call(FunName("_make_obj0"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
+
+        if len(self.children) == 1:
+            return Call(FunName("_make_obj1"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
+        
+        if len(self.children) <= 3:
+            padded_children = self.children + [IntValue(0)] * (len(self.children) - 3)
+            return Call(FunName("_make_obj3"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
+
+        if len(self.children) <= 7:
+            padded_children = self.children + [IntValue(0)] * (len(self.children) - 7)
+            return Call(FunName("_make_obj7"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
+        
+        raise Exception("Object too big to allocate.")
+
     def pretty_print(self, depth = 0) -> str:
         return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
 
@@ -311,9 +326,8 @@ def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
 
 def get_addr_from_rax() -> str:
     return f"""
-        and rax, r12
-        sub rax, [heap]
-        neg rax
+        shl rax, 8
+        shr rax, 8
     """
 
 def get_variant_from_rax() -> str:
