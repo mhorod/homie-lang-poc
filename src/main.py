@@ -27,7 +27,7 @@ def run_file(file):
             program = to_ll(program, ctx)
 
             print(program.pretty_print(), file=sys.stderr)
-            #print(compile(program))
+            print(compile(program))
     else:
         for error in parsing_result.errors:
             print_error(error)
