@@ -14,7 +14,7 @@ class IntValue:
     Loads value to rax
     """
     value: int
-    
+
     def to_asm(self, ctx: AsmContext):
         return f"mov rax, {self.value}"
 
@@ -56,12 +56,12 @@ class Fit:
     def to_asm(self, ctx: AsmContext):
         fit_end = ctx.unique_id("fit_end")
         return f"""
-            {self.obj.to_asm(ctx)}
+            {Push(self.obj).to_asm(ctx)}
             push rax
             {'\n'.join(branch.to_asm(ctx, fit_end) for branch in self.branches[:-1])}
             {self.branches[-1].content.to_asm(ctx)}
             {fit_end}:
-            add rsp, 8
+            {Pop().to_asm(ctx)}
         """
 
     def pretty_print(self, depth = 0) -> str:
@@ -135,10 +135,9 @@ class Fun:
         return f"""
             {self.name}:
             mov rbp, rsp
-            sub rsp, {self.local_vars * 8}
+            {"push qword 0\n" * self.local_vars}
             {'\n'.join(s.to_asm(ctx) for s in self.content)}
-            mov rsp, rbp
-            ret
+            {Return(IntValue(0)).to_asm(ctx)}
         """
 
     def pretty_print(self, depth = 0) -> str:
@@ -150,8 +149,13 @@ class Return:
     content: Expr
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             {self.content.to_asm(ctx)}
+            push rax
+            {"\n".join(f"""
+                {Detach(Var(i)).to_asm(ctx)}
+            """ for i in range(ctx.var_count))}
+            pop rax
             mov rsp, rbp
             ret
         """
@@ -160,22 +164,77 @@ class Return:
         return f"ret {self.content.pretty_print(depth + 1)}"
 
 @dataclass
+class Push:
+    content: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.content.to_asm(ctx)}
+            push rbp
+            push rax
+            mov rdi, rsp
+            call _attach_obj
+            pop rax
+            pop rbp
+            push rax
+        """
+@dataclass
+class Pop:
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            pop rbx
+            push rbp
+            push rax
+            push rbx
+            mov rdi, rsp
+            call _detach_obj
+            pop rbx
+            pop rax
+            pop rbp
+        """
+
+@dataclass
+class Attach:
+    content: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.content.to_asm(ctx)}
+            push rbp
+            push rax
+            mov rdi, rsp
+            call _attach_obj
+            pop rax
+            pop rbp
+        """
+
+@dataclass
+class Detach:
+    content: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.content.to_asm(ctx)}
+            push rbp
+            push rax
+            mov rdi, rsp
+            call _detach_obj
+            pop rax
+            pop rbp
+        """
+
+
+@dataclass
 class Call:
     """calls function and leaves result in rax"""
     function: Expr
     args: List[Expr]
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             push rbp
-            {'\n'.join(f'''
-                {arg.to_asm(ctx)}
-                push rax
-            ''' for arg in reversed(self.args))}
+            {'\n'.join(Push(arg).to_asm(ctx) for arg in reversed(self.args))}
             {self.function.to_asm(ctx)}
             mov rdi, rsp
             call rax
-            add rsp, {len(self.args) * 8}
+            {'\n'.join(Pop().to_asm(ctx) for _ in self.args)}
             pop rbp
         """
 
@@ -188,9 +247,11 @@ class Let:
     value: Expr
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
+            {Detach(Var(self.var)).to_asm(ctx)}
             {self.value.to_asm(ctx)}
             mov [rbp - {8 + 8 * self.var}], rax
+            {Attach(Var(self.var)).to_asm(ctx)}
         """
 
     def pretty_print(self, depth = 0) -> str:
@@ -200,7 +261,7 @@ class Let:
 class FunName:
     name: str
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             mov rax, {self.name}
         """
     def pretty_print(self, depth = 0) -> str:
@@ -217,6 +278,8 @@ class Program:
             extern _make_obj1
             extern _make_obj3
             extern _make_obj7
+            extern _detach_obj
+            extern _attach_obj
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
@@ -224,7 +287,7 @@ class Program:
 
     def pretty_print(self) -> str:
         return '\n\n'.join(f.pretty_print(0) for f in self.functions)
-    
+
 @dataclass
 class Arg:
     i: int
@@ -266,7 +329,7 @@ class Member:
 @dataclass
 class Print:
     value: str
-    
+
     def to_asm(self, ctx: AsmContext):
         str_label = ctx.unique_id("str")
         after_str_label = ctx.unique_id("after_str")
@@ -292,7 +355,7 @@ class IntValue:
     value: int
     def to_asm(self, ctx: AsmContext):
         return f"""
-            mov rax, {self.value}
+            mov eax, {self.value}
         """
 
 @dataclass
@@ -307,15 +370,15 @@ class Create:
 
         if len(self.children) == 1:
             return Call(FunName("_make_obj1"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
-        
+
         if len(self.children) <= 3:
-            padded_children = self.children + [IntValue(0)] * (len(self.children) - 3)
+            padded_children = self.children + [IntValue(0)] * (3 - len(self.children))
             return Call(FunName("_make_obj3"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
 
         if len(self.children) <= 7:
-            padded_children = self.children + [IntValue(0)] * (len(self.children) - 7)
+            padded_children = self.children + [IntValue(0)] * (7 - len(self.children))
             return Call(FunName("_make_obj7"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
-        
+
         raise Exception("Object too big to allocate.")
 
     def pretty_print(self, depth = 0) -> str:

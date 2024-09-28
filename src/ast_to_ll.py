@@ -19,7 +19,7 @@ def to_ll(program: tree.ProgramNode, ctx: TypingContext):
             ll.append(fun_to_ll(item, ctx))
         elif isinstance(item, tree.DisNode):
             for i, variant in enumerate(item.variants):
-                ll.append(compiler.constructor(item.name.text, i, len(variant.args)))
+                ll.append(compiler.constructor(item.name.text, i + 1, len(variant.args)))
     return compiler.Program(ll)
 
 
@@ -65,7 +65,7 @@ def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
         arg_ty = typechecker.substitute(arg.ty, ty.generic_types)
         if not isinstance(arg_ty, DisTy):
             children.append(None)
-        else: 
+        else:
             children.append(pattern_to_ll(arg_ty, pattern_part, ctx))
     variant_id = enum_def.get_variant_id(pattern.name.text)
     return compiler.Pattern(variant_id, children)
@@ -74,7 +74,7 @@ def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
 def fit_to_ll(fit: tree.FitNode, ctx: LLContext):
     obj = expr_to_ll(fit.expr, ctx)
     children = [compiler.FitBranch (
-        pattern_to_ll(fit.expr.ty, branch.left, ctx), 
+        pattern_to_ll(fit.expr.ty, branch.left, ctx),
         expr_to_ll(branch.right, ctx)
     ) for branch in fit.branches]
     return compiler.Fit(obj, children)
@@ -83,12 +83,12 @@ def enum_cons_to_ll(cons: tree.DisConstructorNode, ctx:LLContext):
     enum_def = ctx.enum_defs[cons.name.text]
     if enum_def.get_variant(cons.variant_name.text).get_arg_count() == 0:
         return compiler.Create(enum_def.get_variant_id(cons.variant_name.text), [])
-    else: 
+    else:
         return compiler.FunName(compiler.constructor_name(cons.name.text, enum_def.get_variant_id(cons.variant_name.text)))
-    
+
 def write_to_ll(write: tree.Write, ctx: LLContext):
     return compiler.Print(write.value)
-    
+
 
 def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
     if isinstance(expr, tree.VarNode):
@@ -131,9 +131,9 @@ def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext):
     ctx = LLContext(var_to_id, arg_to_id, ty_ctx.dises)
     body = [expr_to_ll(expr, ctx) for expr in fun.body.statements]
     return compiler.Fun(fun.name.text, local_var_count, body)
-    
 
-    
+
+
 
 def value_to_ll(val: tree.ValueNode, ty_ctx: TypingContext):
     return compiler.IntValue(val.token.text)

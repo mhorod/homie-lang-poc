@@ -136,7 +136,7 @@ fun print_with_space(n: Dig) -> Void {
     ret Void::Void;
 }
 
-fun main() {
+fun test(i: Nat) {
     let zero = Nat::Zero;
     let one = Nat::Succ zero;
     let two = Nat::Succ one;
@@ -149,18 +149,64 @@ fun main() {
     let nine = Nat::Succ eight;
     let ten = Nat::Succ nine;
 
-    let xs = List[Nat]::Cons one 
-        (List[Nat]::Cons five 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons seven 
-        (List[Nat]::Cons four 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons seven 
-        (List[Nat]::Cons four 
-        (List[Nat]::Cons eight 
-        (List[Nat]::Nil)))))))));
-
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight (List[Nat]::Nil)))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
+    let xs = List[Nat]::Cons one (List[Nat]::Cons five (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons three (List[Nat]::Cons seven (List[Nat]::Cons four (List[Nat]::Cons eight xs))))))));
     let sorted = sort[Nat] xs less;
     let digified = fmap[Nat, Dig] nat_to_dig sorted;
-    fmap[Dig, Void] print_with_space digified;
+}
+
+fun main() {
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
+    test Nat::Zero;
 }
