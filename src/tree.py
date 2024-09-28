@@ -83,6 +83,14 @@ class MemberNode(Node):
     expr: ExprNode
     member_name: Token
 
+type AssignableNode = VarNode | MemberNode
+
+@buildable
+@dataclass
+class AssignNode(Node):
+    var: AssignableNode
+    expr: ExprNode
+
 @buildable
 @dataclass
 class FunctionTypeNode:
@@ -132,13 +140,13 @@ class DisNode(Node):
 @dataclass
 class PatternNode(Node):
     name: Token
-    args: List[Pattern | Value | None]
+    args: List[Pattern | ValueNode | None]
 
 @buildable
 @dataclass
 class FitBranchNode(Node):
     location: Location
-    left: Pattern | Value | None
+    left: Pattern | ValueNode | None
     right: ExprNode
 
 @buildable
@@ -148,7 +156,7 @@ class FitNode(Node):
     expr: ExprNode
     branches: List[FitBranchNode]
 
-type ExprNode = FitNode
+type ExprNode = FitNode | VarNode | ValueNode | CallNode | AssignNode
 type StatementNode = ExprNode | RetNode | BlockNode
 
 @buildable
