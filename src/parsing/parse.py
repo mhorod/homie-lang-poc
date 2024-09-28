@@ -182,7 +182,7 @@ def ret_parser(expr_parser):
         builder(RetNode.Builder)
             .then_drop(kind(KeywordKind.KwRet))
             .commit()
-            .then_parse(RetNode.Builder.expr, expr_parser)
+            .then_parse(RetNode.Builder.expr, optional(expr_parser, None))
     )
 
 def wrt_parser():

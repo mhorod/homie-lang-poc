@@ -26,8 +26,8 @@ fun fit_as_statement(n: Nat) {
     // Fit can also be used as a statement, not expression
     fit n {
         Zero => ret Nat::Succ(n),
-        _ => { ret 1; }
     };
+    ret n;
 }
 
 
