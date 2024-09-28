@@ -20,7 +20,7 @@ def run_file(file):
         program = parsing_result.parsed
 
         ctx, report = typecheck(program)
-        
+
         if report.has_errors():
             print_error_report(report)
         else:

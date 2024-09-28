@@ -149,15 +149,15 @@ fun main() {
     let nine = Nat::Succ eight;
     let ten = Nat::Succ nine;
 
-    let xs = List[Nat]::Cons one 
-        (List[Nat]::Cons five 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons seven 
-        (List[Nat]::Cons four 
-        (List[Nat]::Cons three 
-        (List[Nat]::Cons seven 
-        (List[Nat]::Cons four 
-        (List[Nat]::Cons eight 
+    let xs = List[Nat]::Cons one
+        (List[Nat]::Cons five
+        (List[Nat]::Cons three
+        (List[Nat]::Cons seven
+        (List[Nat]::Cons four
+        (List[Nat]::Cons three
+        (List[Nat]::Cons seven
+        (List[Nat]::Cons four
+        (List[Nat]::Cons eight
         (List[Nat]::Nil)))))))));
 
     let sorted = sort[Nat] xs less;

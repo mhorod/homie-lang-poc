@@ -6,19 +6,19 @@ class TypingContextFrame:
     def __init__(self):
         self.locals = {}
         self.generic_nums_ctx = {}
-    
+
     def add_local_var(self, name: str, ty: Ty):
         self.locals[name] = ty
-    
+
     def has_local_var(self, name: str) -> bool:
         return name in self.locals
 
     def get_local_var_type(self, name: str) -> Ty:
         return self.locals[name]
-    
+
     def has_generic(self, name):
         return name in self.generic_nums_ctx
-    
+
     def get_generic(self, name):
         return self.generic_nums_ctx[name]
 
@@ -43,7 +43,7 @@ class TypingContext:
             if frame.has_generic(name):
                 return True
         return False
-    
+
     def get_generic(self, name):
         for frame in self.stack[::-1]:
             if frame.has_generic(name):
@@ -53,7 +53,7 @@ class TypingContext:
 
     def has_dis(self, name) -> bool:
         return name in self.dises
-    
+
     def get_dis(self, name) -> DisDeclaration | ErrorTy:
         return self.dises[name]
 
@@ -62,10 +62,10 @@ class TypingContext:
 
     def get_function(self, name) -> FunctionDeclaration | ErrorTy:
         return self.functions[name]
-    
+
     def add_local_var(self, name: str, ty: Ty):
         self.stack[-1].locals[name] = ty
-    
+
     def has_local_var(self, name: str) -> bool:
         for frame in self.stack[::-1]:
             if frame.has_local_var(name):
