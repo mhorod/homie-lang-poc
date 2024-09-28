@@ -79,6 +79,14 @@ def build_node(left, operator, right):
         else:
             msg = Message(right.location, f"Expected member name")
             return Result.Err([Error(msg)])
+    elif operator.name.kind == SymbolKind.Equals:
+        if isinstance(left, (VarNode, MemberNode)):
+            node = AssignNode(left, right)
+            node.location = Location.wrap(left.location, right.location)
+            return Result.Ok(node)
+        else:
+            msg = Message(left.location, f"Can only assign to variables and members")
+            return Result.Err([Error(msg)])
     else:
         op = VarNode(operator.name)
         op.location = operator.location

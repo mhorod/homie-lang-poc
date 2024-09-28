@@ -88,8 +88,8 @@ def format_message(message, squiggle_colorizer, line_digits):
 
 def format_single_line_message(message, squiggle_colorizer, line_digits):
     '''
-    If message location takes only one line then underline the code with 
-    squiggles 
+    If message location takes only one line then underline the code with
+    squiggles
     ^^^^^^^^^
     '''
     location = message.location
@@ -106,7 +106,7 @@ def format_multi_line_message(message, squiggle_colorizer, line_digits):
     '''
       If message location takes more than one line then underline the code with
     /------------^^^^
-    | vertical bars 
+    | vertical bars
     | and hyphens
     \\-^^^^^^^^^^^
     '''

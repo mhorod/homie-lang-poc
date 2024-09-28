@@ -11,8 +11,8 @@ section .text
 %define MAP_GROWSDOWN 256
 %define MAP_ANONYMOUS 32
 %define MAP_PRIVATE 2
-%define PROT_READ 1 
-%define PROT_WRITE 2 
+%define PROT_READ 1
+%define PROT_WRITE 2
 
 %define SYS_MMAP 9
 %define SYS_EXIT 60
@@ -41,7 +41,7 @@ _make_obj:
     mov rax, [heap_end] ; heap end
     pop rsi ; return pointer
     pop rbx ; object type
-    pop rdx ; argument count 
+    pop rdx ; argument count
     cmp rdx, 0
     je read_args_end
     mov rcx, rdx ; loop counter
@@ -51,7 +51,7 @@ _make_obj:
         loop read_args
     mov [heap_end], rax
     read_args_end:
-    
+
     ; make funny pointer (1 byte for object type, 7 bytes for position on heap)
     sub rax, [heap]
     neg rax

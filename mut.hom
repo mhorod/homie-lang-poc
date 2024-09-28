@@ -1,0 +1,39 @@
+dis Pos {
+    One,
+    Twice(p: Pos),
+    TwicePlusOne(p: Pos)
+}
+
+fun _print_pos(p: Pos) {
+    fit p {
+        One => wrt "",
+        Twice _ => _print_pos(p.p),
+        TwicePlusOne _ => _print_pos(p.p)
+    };
+    fit p {
+        One => wrt "1",
+        Twice _ => wrt "0",
+        TwicePlusOne _ => wrt "1"
+    };
+}
+fun print_pos(p: Pos) {
+    _print_pos(p);
+    wrt "\n";
+}
+
+fun main() {
+    let seven = Pos::TwicePlusOne(Pos::TwicePlusOne(Pos::One));
+    print_pos(seven);
+
+    let eight = Pos::Twice(Pos::Twice(Pos::Twice(Pos::One)));
+    print_pos(eight);
+
+    let tmp = eight.p;
+    fit tmp {
+        Twice _ => tmp.p = seven
+    };
+    print_pos(eight);
+
+    eight = seven;
+    print_pos(eight);
+}

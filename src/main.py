@@ -20,14 +20,14 @@ def run_file(file):
         program = parsing_result.parsed
 
         ctx, report = typecheck(program)
-        
+
         if report.has_errors():
             print_error_report(report)
         else:
             program = to_ll(program, ctx)
 
             print(program.pretty_print(), file=sys.stderr)
-            #print(compile(program))
+            print(compile(program))
     else:
         for error in parsing_result.errors:
             print_error(error)

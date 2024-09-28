@@ -7,7 +7,7 @@ type Ty = WildcardTy | TyVar | FunTy | DisTy | ErrorTy | None | SimpleType
 
 @dataclass
 class WildcardTy:
-    
+
     def __str__(self):
         return "?"
 
@@ -58,7 +58,7 @@ class VariantDeclaration:
 
     def get_arg_types(self):
         return [arg.ty for arg in self.args]
-    
+
     def has_arg(self, name: str):
         return any(arg.name == name for arg in self.args)
 
