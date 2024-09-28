@@ -48,7 +48,7 @@ def is_subpattern(sub: TyPattern | None, sup: TyPattern | None) -> bool:
     if sub is None:
         return False
     if sub.name != sup.name:
-        return False 
+        return False
     if sup.children is None:
         return True
     if sub.children is None:
@@ -62,8 +62,8 @@ def is_subtype(sub, sup):
         return True
     if isinstance(sub, FunTy) and isinstance(sup, FunTy):
         return (
-            len(sub.arg_types) == len(sup.arg_types) 
-                and is_subtype(sub.result_type, sup.result_type) 
+            len(sub.arg_types) == len(sup.arg_types)
+                and is_subtype(sub.result_type, sup.result_type)
                 and all(is_subtype(b, a) for (a, b) in zip(sub.arg_types, sup.arg_types))
         )
     if isinstance(sub, DisTy) and isinstance(sup, DisTy):

@@ -26,7 +26,7 @@ class TypeConverter:
             return WildcardTy()
         else:
             raise Exception(f"Cannot convert {parsed_type} into Ty")
-        
+
     def convert_dis_type(self, parsed_type: DisTypeNode):
         name = parsed_type.name.text
         if self.ctx.has_generic(name):
@@ -76,7 +76,7 @@ class TypeConverter:
             return ErrorTy()
         elif len(self.dis_nodes[dis_name]) > 1:
             return ErrorTy()
-        
+
         dis_node = self.dis_nodes[dis_name][0]
 
         variant_name = parsed_type.variant_name.text

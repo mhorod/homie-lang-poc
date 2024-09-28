@@ -12,19 +12,19 @@ class FunctionCall:
     def __init__(self, left, right):
         self.left = left
         self.right = right
-    
+
     def to_list(self):
         if isinstance(self.left, FunctionCall):
             return self.left.to_list() + [self.right]
         else:
             return [self.left, self.right]
-        
+
     def flatten(self):
         parts = self.to_list()
         call_node =  CallNode(parts[0], parts[1:])
         call_node.location = Location.wrap(parts[0].location, parts[-1].location)
         return call_node
-    
+
 def make_expr(parts):
     if isinstance(parts[0], OperatorNode):
         msg = Message(parts[0].location, f"Expression cannot begin with an operator")
@@ -46,7 +46,7 @@ def make_expr(parts):
     expr = flatten_functions(expr)
     return Result.Ok(expr)
 
-def build_expr(nodes, last_operator):    
+def build_expr(nodes, last_operator):
     left, nodes = nodes[0], nodes[1:]
     while nodes and right_op_first(last_operator, nodes[0]):
         operator, nodes = nodes[0], nodes[1:]

@@ -14,7 +14,7 @@ class IntValue:
     Loads value to rax
     """
     value: int
-    
+
     def to_asm(self, ctx: AsmContext):
         return f"mov rax, {self.value}"
 
@@ -150,7 +150,7 @@ class Return:
     content: Expr
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             {self.content.to_asm(ctx)}
             mov rsp, rbp
             ret
@@ -166,7 +166,7 @@ class Call:
     args: List[Expr]
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             push rbp
             {'\n'.join(f'''
                 {arg.to_asm(ctx)}
@@ -187,7 +187,7 @@ class Let:
     value: Expr
 
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             {self.value.to_asm(ctx)}
             mov [rbp - {8 + 8 * self.var}], rax
         """
@@ -199,7 +199,7 @@ class Let:
 class FunName:
     name: str
     def to_asm(self, ctx: AsmContext) -> str:
-        return f""" 
+        return f"""
             mov rax, {self.name}
         """
     def pretty_print(self, depth = 0) -> str:
@@ -221,7 +221,7 @@ class Program:
 
     def pretty_print(self) -> str:
         return '\n\n'.join(f.pretty_print(0) for f in self.functions)
-    
+
 @dataclass
 class Arg:
     i: int
@@ -263,7 +263,7 @@ class Member:
 @dataclass
 class Print:
     value: str
-    
+
     def to_asm(self, ctx: AsmContext):
         str_label = ctx.unique_id("str")
         after_str_label = ctx.unique_id("after_str")

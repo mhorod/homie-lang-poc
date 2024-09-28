@@ -63,7 +63,7 @@ def function_argument_count_mismatch(location, fun_location, fun_ty, expected, a
     msg = Message(location, f"Function takes {expected} {pluralize(expected, Words.ARGUMENTS)} but {actual} {pluralize(actual, Words.WAS)} provided")
     explanation = Message(fun_location, f"Function has type {fun_ty}")
     return Error(msg, [explanation])
-    
+
 
 def cannot_match_pattern_to_non_dis(location, pat_name, ty):
     msg = Message(location, f"Cannot match pattern {pat_name} to non-dis type {ty}")

@@ -113,7 +113,7 @@ class Typechecker:
             self.report.error(unknown_function(fun_inst))
             self.convert_generics(fun_inst.generics)
             return ErrorTy()
-    
+
     def convert_generics(self, generics: List[TypeNode]):
         converted_generics = []
         for ty in generics:
@@ -134,7 +134,7 @@ class Typechecker:
             self.report.error(dis_does_not_exist(expr.name.location, expr.name.text))
             return ErrorTy()
         dis_decl = self.ctx.get_dis(expr.name.text)
-        
+
         if dis_decl.generic_arg_count != len(expr.generics):
             expected_count = dis_decl.generic_arg_count
             actual_count = len(expr.generics)
@@ -145,7 +145,7 @@ class Typechecker:
         if not dis_decl.has_variant(expr.variant_name.text):
             self.report.error(dis_has_no_variant(expr.variant_name.location, expr.name.text, expr.variant_name.text))
             return ErrorTy()
-        
+
         generics = [self.type_converter.convert_type(generic) for generic in expr.generics]
 
         variant = dis_decl.get_variant(expr.variant_name.text)
@@ -194,9 +194,9 @@ class Typechecker:
             return ErrorTy()
         elif expr_ty.pattern is None:
             err = cannot_get_member_on_non_variant_type(
-                member.location, 
-                member.member_name.text, 
-                expr_ty, 
+                member.location,
+                member.member_name.text,
+                expr_ty,
                 member.expr.location)
             self.report.error(err)
             return ErrorTy()
@@ -256,7 +256,7 @@ class Typechecker:
             err = variant_argument_count_mismatch(pat.location, dis_node, variant_node, len(pat.args))
             self.report.error(err)
             return False
-            
+
         for (arg_ty, child_pattern) in zip(variant_decl.get_arg_types(), pat.args):
             arg_ty = substitute(arg_ty, ty.generic_types)
             self.validate_pattern_valid_for_ty(child_pattern, arg_ty)
@@ -279,8 +279,8 @@ class Typechecker:
             actual = len(call.arguments)
             err = function_argument_count_mismatch(call.location, call.fun.location, fun_ty, expected, actual)
             self.report.error(err)
-        
-        
+
+
         error = False
         for arg, arg_ty, expected_ty in zip(call.arguments, arg_tys, fun_ty.arg_types):
             if not is_subtype(arg_ty, expected_ty):
@@ -292,7 +292,7 @@ class Typechecker:
         else:
             return fun_ty.result_type
 
-        
+
     def convert_pattern(self, p: Pattern | ValueNode | None):
         # TODO: typecheck pattern with known dis variants
         if p is None:
@@ -302,7 +302,7 @@ class Typechecker:
         else:
             return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])
 
-        
+
 
     def find_dis_declarations(self, program: ProgramNode):
         dis_nodes = self.find_dis_nodes(program)
@@ -363,7 +363,7 @@ class Typechecker:
                 else:
                     function_declarations[name] = ErrorTy()
         return function_declarations
-    
+
     def get_fun_type(self, fun: FunNode):
         if not self.unique_generics(fun.generics):
             return ErrorTy()
