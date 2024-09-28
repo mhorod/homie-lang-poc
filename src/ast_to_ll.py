@@ -83,7 +83,7 @@ def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
     return compiler.Pattern(variant_id, children)
 
 
-def fit_to_ll(fit: tree.FitNode, ctx: LLContext):
+def fit_to_ll(fit: tree.FitExprNode | tree.FitStatementNode, ctx: LLContext):
     obj = expr_to_ll(fit.expr, ctx)
     children = [compiler.FitBranch (
         pattern_to_ll(fit.expr.ty, branch.left, ctx),
@@ -113,7 +113,7 @@ def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
         return member_to_ll(expr, ctx)
     elif isinstance(expr, tree.RetNode):
         return ret_to_ll(expr, ctx)
-    elif isinstance(expr, tree.FitNode):
+    elif isinstance(expr, tree.FitExprNode) or isinstance(expr, tree.FitStatementNode):
         return fit_to_ll(expr, ctx)
     elif isinstance(expr, tree.LetNode):
         return let_to_ll(expr, ctx)
@@ -125,6 +125,8 @@ def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
         return value_to_ll(expr, ctx)
     elif isinstance(expr, tree.AssignNode):
         return assign_to_ll(expr, ctx)
+    elif isinstance(expr, tree.BlockNode):
+        return block_to_ll(expr, ctx)
     else:
         raise Exception(f"Unexpected tree node: {expr}")
 
@@ -156,3 +158,7 @@ def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext):
 
 def value_to_ll(val: tree.ValueNode, ty_ctx: TypingContext):
     return compiler.IntValue(val.token.text)
+
+
+def block_to_ll(block: tree.BlockNode, ctx: LLContext):
+    return compiler.Block([expr_to_ll(stmt, ctx) for stmt in block.statements])

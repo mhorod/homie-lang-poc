@@ -9,6 +9,19 @@ type Expr = Create | Fit | FunName | Call | Var | Arg | Member
 type Statement = Let | Return
 
 @dataclass
+class Block:
+    statements: List[Statement]
+
+    def pretty_print(self, indent=1):
+        if len(self.statements) == 0:
+            return "{}"
+        stmts = "\n".join(" " * indent + s.pretty_print(indent + 1) + ";" for s in self.statements)
+        return "{" + "\n" + stmts + "\n" + " " * indent + "}"
+
+    def to_asm(self, ctx: AsmContext):
+        return "\n".join(s.to_asm(ctx) for s in self.statements)
+
+@dataclass
 class IntValue:
     """
     Loads value to rax
