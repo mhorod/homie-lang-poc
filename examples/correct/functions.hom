@@ -17,9 +17,27 @@ fun calls_f() -> Int {
     ret f(f(1, 2), g());
 }
 
+// Functions can be returned
+fun return_function(x: Int, y: Int) -> (Int, Int) -> Int {
+    ret f;
+}
+
 // Functions can be passed as arguments to other functions
-fun apply(f: Int -> Int -> Int, x: Int) -> Int {
+fun apply_double(f: (Int, Int) -> Int, x: Int) -> Int {
     ret f(x, x);
+}
+
+fun take_from_supplier(supplier: () -> Int) -> Int {
+    ret supplier();
+}
+
+fun give_to_consumer(consumer: Int -> Void) {
+    consumer(42);
+}
+
+// There is no currying but the type syntax for functions returning functions is similar to the functional one
+fun chained_call(f: (Int, Int) -> (Int, Int) -> Int) {
+    ret f(1, 2)(3, 4);
 }
 
 

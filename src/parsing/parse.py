@@ -60,25 +60,48 @@ def args_parser():
 
 
 def type_parser():
-    def make_function_type(args):
-        if len(args) == 1:
-            return args[0]
+    def make_function_type(parts):
+        arg = parts[0]
+        if isinstance(arg, FunctionTypeArgsNode):
+            args = arg.parts
         else:
-            return FunctionTypeNode(args[:-1], args[-1])
+            args = [arg]
+
+        if len(parts) == 2:
+            return FunctionTypeNode(args, parts[1])
+        else:
+            return FunctionTypeNode(args, make_function_type(parts[1:]))
+
+    def make_type(args):
+        if len(args) == 1:
+            if isinstance(args[0], FunctionTypeArgsNode):
+                err = Error(Message(args[0].location, "Invalid type"))
+                return Result.Err([err])
+            else:
+                return Result.Ok(args[0])
+        else:
+            return Result.Ok(make_function_type(args))
 
     def type_parser_impl(self):
-        return interspersed_positive(dis_constructor_parser(self) | dis_type_parser(self) | fail("type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
+        return (
+            interspersed_positive(
+                dis_constructor_parser(self)
+                | dis_type_parser(self)
+                | function_args_type_parser(self)
+                | fail("type"),
+                ExpectKind(SymbolKind.Arrow),
+                trailing=False)
+            ).and_then(make_type)
 
     return Recursive(type_parser_impl)
 
 def function_args_type_parser(type_parser):
     return (
-        sequence()
+        builder(FunctionTypeArgsNode.Builder)
             .then_drop(kind(DelimKind.OpenParen))
             .commit()
-            .then_parse(repeat(type_parser))
+            .then_parse(FunctionTypeArgsNode.Builder.parts, interspersed(type_parser, kind(SymbolKind.Comma), trailing=False))
             .then_drop(kind(DelimKind.CloseParen))
-            .map(extract)
     )
 
 
