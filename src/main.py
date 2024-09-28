@@ -14,7 +14,16 @@ def run_file(file):
         source = Source(file, f.read())
 
     tokens = lex(source)
+
+    if '--tokens' in sys.argv:
+        print(tokens)
+        return
+
     parsing_result = parse(tokens)
+
+    if '--parse' in sys.argv:
+        print(parsing_result)
+        return
 
     if parsing_result.status == ResultStatus.Ok:
         program = parsing_result.parsed
@@ -26,7 +35,9 @@ def run_file(file):
         else:
             program = to_ll(program, ctx)
 
-            print(program.pretty_print(), file=sys.stderr)
+            if '--ll' in sys.argv:
+                print(program.pretty_print())
+                return
             print(compile(program))
     else:
         for error in parsing_result.errors:

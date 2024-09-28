@@ -4,7 +4,9 @@ from typing import *
 from dataclasses import dataclass
 from enum import Enum, auto
 
-type Expr = Create | Fit | FunName | Call | Var | Arg | Member
+from typechecking.typechecker import get_builtins
+
+type Expr = Create | Fit | FunName | Call | VarAddress | ArgAddress | MemberAddress | Deref
 
 type Statement = Let | Return
 
@@ -236,6 +238,7 @@ class Program:
             extern _make_obj1
             extern _make_obj3
             extern _make_obj7
+            {'\n'.join(f'extern {name}' for name in get_builtins().keys())}
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """

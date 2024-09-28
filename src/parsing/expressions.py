@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from parsing.combinators import *
 from tree import *
@@ -54,6 +54,17 @@ def build_expr(nodes, last_operator):
             left = left_result.parsed
     return Result.Ok((left, nodes))
 
+TOKENS_BUILTINS_MAP = {
+    '+': '__builtin_operator_add',
+    '-': '__builtin_operator_sub',
+    '*': '__builtin_operator_mul',
+    '/': '__builtin_operator_div',
+    '%': '__builtin_operator_mod'
+}
+
+def fix_builtin_token(token: Token) -> Token:
+    return replace(token, text = TOKENS_BUILTINS_MAP[token.text])
+
 def build_node(left, operator, right):
     left = unwrap_tuple_like(left)
     if left.status != ResultStatus.Ok:
@@ -90,7 +101,7 @@ def build_node(left, operator, right):
             msg = Message(left.location, f"Can only assign to variables and members")
             return Result.Err([Error(msg)])
     else:
-        op = VarNode(operator.name)
+        op = VarNode(fix_builtin_token(operator.name))
         op.location = operator.location
         call_node = CallNode(op, [left, right])
         call_node.location = Location.wrap(left.location, right.location)

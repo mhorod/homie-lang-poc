@@ -40,7 +40,10 @@ class SymbolKind(TokenKind, Enum):
     DoubleColon = auto()
     Equals = auto()
     Plus = auto()
+    Minus = auto()
     Asterisk = auto()
+    Slash = auto()
+    Percent = auto()
 
 class WhitespaceKind(TokenKind, Enum):
     Whitespace = auto()
@@ -76,7 +79,10 @@ SYMBOL_MAP = {
     "=" : SymbolKind.Equals,
 
     "+": SymbolKind.Plus,
+    "-": SymbolKind.Minus,
     "*": SymbolKind.Asterisk,
+    "/": SymbolKind.Slash,
+    "%": SymbolKind.Percent,
 
     "(": DelimKind.OpenParen,
     ")": DelimKind.CloseParen,

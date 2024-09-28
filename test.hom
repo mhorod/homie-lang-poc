@@ -1,3 +1,0 @@
-dis Nat { A, A }
-fun g(x: Nat) {
-}
