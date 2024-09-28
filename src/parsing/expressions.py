@@ -12,19 +12,19 @@ class FunctionCall:
     def __init__(self, left, right):
         self.left = left
         self.right = right
-    
+
     def to_list(self):
         if isinstance(self.left, FunctionCall):
             return self.left.to_list() + [self.right]
         else:
             return [self.left, self.right]
-        
+
     def flatten(self):
         parts = self.to_list()
         call_node =  CallNode(parts[0], parts[1:])
         call_node.location = Location.wrap(parts[0].location, parts[-1].location)
         return call_node
-    
+
 def make_expr(parts):
     if isinstance(parts[0], OperatorNode):
         msg = Message(parts[0].location, f"Expression cannot begin with an operator")
@@ -33,7 +33,11 @@ def make_expr(parts):
     new_parts = [parts[0]]
     for i in range(1, len(parts)):
         if not isinstance(new_parts[-1], OperatorNode) and not isinstance(parts[i], OperatorNode):
-            new_parts.append(OperatorNode(FunctionCallOperator(), 1, Associativity.LEFT))
+            if isinstance(parts[i], TupleLikeNode):
+                new_parts.append(OperatorNode(FunctionCallOperator(), 1, Associativity.LEFT))
+            else:
+                msg = Message(parts[i].location, "Expected operator or function call")
+                return Result.Err([Error(msg)])
         elif isinstance(new_parts[-1], OperatorNode) and isinstance(parts[i], OperatorNode):
             msg = Message(parts[i].location, "Expected expression")
             return Result.Err([Error(msg)])
@@ -46,7 +50,7 @@ def make_expr(parts):
     expr = flatten_functions(expr)
     return Result.Ok(expr)
 
-def build_expr(nodes, last_operator):    
+def build_expr(nodes, last_operator):
     left, nodes = nodes[0], nodes[1:]
     while nodes and right_op_first(last_operator, nodes[0]):
         operator, nodes = nodes[0], nodes[1:]
@@ -64,7 +68,9 @@ def build_expr(nodes, last_operator):
 
 def build_node(left, operator, right):
     if operator.name == FunctionCallOperator():
-        return Result.Ok(FunctionCall(left, right))
+        node = CallNode(left, right.parts)
+        node.location = Location.wrap(left.location, right.location)
+        return Result.Ok(node)
     elif operator.name.kind == SymbolKind.Dot:
         if isinstance(right, VarNode):
             node = MemberNode(left, right.name)

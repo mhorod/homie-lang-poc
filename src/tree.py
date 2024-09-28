@@ -195,3 +195,9 @@ class FunInstNode(Node):
 class CallNode(Node):
     fun: ExprNode | DisConstructorNode
     arguments: List[ExprNode]
+
+
+@buildable
+@dataclass
+class TupleLikeNode:
+    parts: List[ExprNode]

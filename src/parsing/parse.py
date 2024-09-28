@@ -59,7 +59,7 @@ def args_parser():
     return parenthesized(interspersed(arg_parser(), kind(SymbolKind.Comma)))
 
 
-def type_parser():        
+def type_parser():
     def make_function_type(args):
         if len(args) == 1:
             return args[0]
@@ -70,6 +70,17 @@ def type_parser():
         return interspersed_positive(dis_constructor_parser(self) | dis_type_parser(self) | fail("type"), ExpectKind(SymbolKind.Arrow)).map(make_function_type)
 
     return Recursive(type_parser_impl)
+
+def function_args_type_parser(type_parser):
+    return (
+        sequence()
+            .then_drop(kind(DelimKind.OpenParen))
+            .commit()
+            .then_parse(repeat(type_parser))
+            .then_drop(kind(DelimKind.CloseParen))
+            .map(extract)
+    )
+
 
 def generic_args_parser(type_parser=type_parser()):
     wildcard_parser = builder(WildcardTypeNode.Builder).then_drop(kind(SymbolKind.QuestionMark))
@@ -98,7 +109,7 @@ def function_parser():
             .then_parse(FunNode.Builder.generics, generic_params_parser())
             .then_parse(FunNode.Builder.args, args_parser())
             .then_parse(FunNode.Builder.ret, optional(return_type_parser, None))
-            .then_parse(FunNode.Builder.body, block_parser(expr_parser()))
+            .then_parse(FunNode.Builder.body, block_parser(statement_parser()))
     )
 
 def fit_branch_parser(expr_parser):
@@ -150,10 +161,10 @@ def let_parser(expr_parser):
     )
 
 
-def block_parser(expr_parser):
+def block_parser(statement_parser):
     single_expr_parser = (
         sequence()
-            .then_parse(expr_parser)
+            .then_parse(statement_parser)
             .commit()
             .then_drop(kind(SymbolKind.Semicolon))
     )
@@ -186,16 +197,27 @@ def operator_parser():
 def expr_term_parser(expr_parser):
     return (
         value_parser()
-        | ret_parser(expr_parser)
         | fit_parser(expr_parser)
         | let_parser(expr_parser)
-        | parenthesized(expr_parser)
+        | tuple_like_parser(expr_parser)
         | fun_instantiation_parser()
         | var_parser()
         | dis_constructor_parser()
-        | wrt_parser()
         | fail("expression")
         )
+
+def statement_parser(expr_parser=expr_parser()):
+    def statement_parser_impl(self):
+        return ret_parser(expr_parser) | block_parser(self) | wrt_parser() | expr_parser | fail("statement")
+    return Recursive(statement_parser_impl)
+
+def tuple_like_parser(expr_parser=expr_parser()):
+    return (
+        builder(TupleLikeNode.Builder)
+            .then_drop(kind(DelimKind.OpenParen))
+            .then_parse(TupleLikeNode.Builder.parts, interspersed(expr_parser, kind(SymbolKind.Comma), trailing=False))
+            .then_drop(kind(DelimKind.CloseParen))
+    )
 
 def fun_instantiation_parser():
     return (
