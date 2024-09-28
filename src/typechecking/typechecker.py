@@ -34,7 +34,7 @@ class Typechecker:
             self.typecheck_program(tree)
         elif isinstance(tree, Write):
             return
-        elif isinstance(tree, FitNode):
+        elif isinstance(tree, FitExprNode) or isinstance(tree, FitStatementNode):
             self.type_fit(tree)
         elif isinstance(tree, LetNode):
             ty = self.type_expr(tree.value)
@@ -170,7 +170,7 @@ class Typechecker:
         elif isinstance(expr, VarNode):
             expr.ty = self.type_var(expr)
             return expr.ty
-        elif isinstance(expr, FitNode):
+        elif isinstance(expr, FitExprNode):
             expr.ty = self.type_fit(expr)
             return expr.ty
         elif isinstance(expr, CallNode):
@@ -216,32 +216,41 @@ class Typechecker:
                 arg_ty.pattern = expr_ty.pattern.children[variant.arg_index(member.member_name.text)]
             return arg_ty
 
-    def type_fit(self, fit: FitNode):
+    def type_fit(self, fit: FitExprNode | FitStatementNode):
         expr = fit.expr
         expr_ty = self.type_expr(expr)
         if isinstance(expr_ty, ErrorTy):
             return ErrorTy()
 
+        is_fit_statement = isinstance(fit, FitStatementNode)
+
         if not isinstance(expr_ty, DisTy):
             self.report.error(expected_dis_type(expr.location, expr_ty))
             return ErrorTy()
 
-        ty = self.type_fit_branch(expr, expr_ty, fit.branches[0])
+        ty = self.type_fit_branch(expr, expr_ty, fit.branches[0], is_fit_statement)
         for branch in fit.branches[1:]:
-            ty = find_supertype(ty, self.type_fit_branch(expr, expr_ty, branch))
+            ty = find_supertype(ty, self.type_fit_branch(expr, expr_ty, branch, is_fit_statement))
         return ty
 
-    def type_fit_branch(self, fit_expr: ExprNode, fit_expr_ty: Ty, branch: FitBranchNode):
+    def type_fit_branch(self, fit_expr: ExprNode, fit_expr_ty: Ty, branch: FitBranchNode, is_fit_statement):
         if not isinstance(fit_expr, VarNode) or not isinstance(branch.left, PatternNode):
-            return self.type_expr(branch.right)
+            return self.type_fit_branch_right(branch.right, is_fit_statement)
         else:
             pat = self.convert_pattern(branch.left)
             self.validate_pattern_valid_for_ty(branch.left, fit_expr_ty)
             self.ctx.push()
             self.ctx.add_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
-            result = self.type_expr(branch.right)
+            result = self.type_fit_branch_right(branch.right, is_fit_statement)
             self.ctx.pop()
             return result
+
+    def type_fit_branch_right(self, node, is_fit_statement):
+        if is_fit_statement:
+            self.typecheck(node)
+        else:
+            return self.type_expr(node)
+
 
     def validate_pattern_valid_for_ty(self, pat: PatternNode | None, ty: Ty):
         if pat is None:

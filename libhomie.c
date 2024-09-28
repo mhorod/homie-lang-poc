@@ -48,11 +48,11 @@ static void exit(int error_code)
     asm volatile
     (
         "syscall"
-        : 
+        :
         : "a"(SYS_EXIT), "D"(error_code)
         : "rcx", "r11", "memory"
     );
-    while(1); 
+    while(1);
 }
 
 typedef struct Heap {
@@ -114,7 +114,7 @@ static void init(Heap * heap, size_t elem_count, size_t elem_size, void * heap_p
 typedef unsigned long funny_ptr_t;
 
 static long funny_ptr(void * ptr, long variant) {
-    return ((long) ptr) | (variant << 56); 
+    return ((long) ptr) | (variant << 56);
 }
 
 long _make_obj0(long * args) {
@@ -140,7 +140,7 @@ long _make_obj3(long * args) {
 }
 
 long _make_obj7(long * args) {
-    H3Frame * frame = (H3Frame *) alloc(&H7);
+    H7Frame * frame = (H7Frame *) alloc(&H7);
     frame->attached = 1;
     frame->visited = 0;
     frame->children[0] = (void *) args[1];
@@ -155,7 +155,7 @@ long _make_obj7(long * args) {
 
 #define INITIAL_HEAP_SIZE 512
 
-extern void main();
+extern int main();
 
 void _start() {
     init(&H1, INITIAL_HEAP_SIZE, sizeof(H1Frame), (void *) 0x1000000000, (void *) 0x11000000000);

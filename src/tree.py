@@ -151,13 +151,21 @@ class FitBranchNode(Node):
 
 @buildable
 @dataclass
-class FitNode(Node):
+class FitExprNode(Node):
     location: Location
     expr: ExprNode
     branches: List[FitBranchNode]
 
-type ExprNode = FitNode | VarNode | ValueNode | CallNode | AssignNode
-type StatementNode = ExprNode | RetNode | BlockNode
+@buildable
+@dataclass
+class FitStatementNode(Node):
+    location: Location
+    expr: ExprNode
+    branches: List[FitBranchNode]
+
+
+type ExprNode = FitExprNode | VarNode | ValueNode | CallNode | AssignNode
+type StatementNode = ExprNode | RetNode | BlockNode | FitStatementNode
 
 @buildable
 @dataclass

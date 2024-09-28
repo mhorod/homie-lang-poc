@@ -139,11 +139,11 @@ def function_parser():
 def fit_expr_parser(expr_parser):
     branches_parser = braced(interspersed_positive(fit_expr_branch_parser(expr_parser), kind(SymbolKind.Comma)))
     return (
-        builder(FitNode.Builder)
+        builder(FitExprNode.Builder)
             .then_drop(kind(KeywordKind.KwFit))
             .commit()
-            .then_parse(FitNode.Builder.expr, expr_parser)
-            .then_parse(FitNode.Builder.branches, branches_parser)
+            .then_parse(FitExprNode.Builder.expr, expr_parser)
+            .then_parse(FitExprNode.Builder.branches, branches_parser)
     )
 
 def fit_expr_branch_parser(expr_parser):
@@ -159,11 +159,11 @@ def fit_expr_branch_parser(expr_parser):
 def fit_stmt_parser(expr_parser, statement_parser):
     branches_parser = braced(interspersed_positive(fit_stmt_branch_parser(statement_parser), kind(SymbolKind.Comma)))
     return (
-        builder(FitNode.Builder)
+        builder(FitStatementNode.Builder)
             .then_drop(kind(KeywordKind.KwFit))
             .commit()
-            .then_parse(FitNode.Builder.expr, expr_parser)
-            .then_parse(FitNode.Builder.branches, branches_parser)
+            .then_parse(FitStatementNode.Builder.expr, expr_parser)
+            .then_parse(FitStatementNode.Builder.branches, branches_parser)
     )
 
 def fit_stmt_branch_parser(statement_parser):
