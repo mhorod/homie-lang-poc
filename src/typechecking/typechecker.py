@@ -182,6 +182,10 @@ class Typechecker:
         elif isinstance(expr, Write):
             expr.ty = None
             return expr.ty
+        elif isinstance(expr, AssignNode):
+            expr.ty = self.type_expr(expr.var)
+            # todo check if expr.expr has compatible type
+            return expr.ty
         else:
             raise Exception(f"Cannot get type of expression {expr}")
 

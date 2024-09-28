@@ -153,7 +153,7 @@ class Return:
             {self.content.to_asm(ctx)}
             push rax
             {"\n".join(f"""
-                {Detach(Var(i)).to_asm(ctx)}
+                {Detach(VarArg(VarAddress(i))).to_asm(ctx)}
             """ for i in range(ctx.var_count))}
             pop rax
             mov rsp, rbp
@@ -222,6 +222,11 @@ class Detach:
 
 
 @dataclass
+class Noop:
+    def to_asm(self, ctx: AsmContext) -> str:
+        return "";
+
+@dataclass
 class Call:
     """calls function and leaves result in rax"""
     function: Expr
@@ -248,10 +253,10 @@ class Let:
 
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            {Detach(Var(self.var)).to_asm(ctx)}
+            {Detach(VarArg(VarAddress(self.var))).to_asm(ctx)}
             {self.value.to_asm(ctx)}
             mov [rbp - {8 + 8 * self.var}], rax
-            {Attach(Var(self.var)).to_asm(ctx)}
+            {Attach(VarArg(VarAddress(self.var))).to_asm(ctx)}
         """
 
     def pretty_print(self, depth = 0) -> str:
@@ -289,28 +294,39 @@ class Program:
         return '\n\n'.join(f.pretty_print(0) for f in self.functions)
 
 @dataclass
-class Arg:
+class ArgAddress:
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rax, [rbp + {8 + 8 * self.i}]
+            lea rax, [rbp + {8 + 8 * self.i}]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"[{self.i}]"
+        return f"&[{self.i}]"
 
 @dataclass
-class Var:
+class VarAddress:
     var: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rax, [rbp - {8 + 8 * self.var}]
+            lea rax, [rbp - {8 + 8 * self.var}]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"({self.var})"
+        return f"&({self.var})"
 
 @dataclass
-class Member:
-    """returns ith member"""
+class VarArg:
+    var: ArgAddress | VarAddress
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.var.to_asm(ctx)}
+            mov rax, [rax]
+        """
+    def pretty_print(self, depth = 0) -> str:
+        return self.var.pretty_print(depth)[1:]
+
+@dataclass
+class MemberAddress:
+    """returns ith member field address"""
     obj: Expr
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
@@ -318,13 +334,42 @@ class Member:
             {self.obj.to_asm(ctx)}
             {get_addr_from_rax()}
             add rax, {8 * self.i}
+        """
+    def pretty_print(self, depth = 0) -> str:
+        return f"&({self.obj.pretty_print(depth)}).{self.i}"
+
+@dataclass
+class Member: # @pichal w zasadzie to to samo co VarArg. Może jakiś Deref?
+    """returns ith member"""
+    member: MemberAddress
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.member.to_asm(ctx)}
             mov rax, [rax]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"({self.obj.pretty_print(depth)}).{self.i}"
+        return self.member.pretty_print(depth)[1:]
 
-
-
+@dataclass
+class Assign:
+    """assigns to variable, argument or member"""
+    var: ArgAddress | VarAddress | MemberAddress
+    obj: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.var.to_asm(ctx)}
+            push rax
+            push rax
+            {self.obj.to_asm(ctx)}
+            pop rcx
+            mov [rcx], rax
+            {Attach(Noop()).to_asm(ctx)}
+            pop rax
+            mov rax, [rax]
+            {Detach(Noop()).to_asm(ctx)}
+        """
+    def pretty_print(self, depth = 0) -> str:
+        return self.var.pretty_print(depth) + " = " + self.obj.pretty_print(depth)
 
 @dataclass
 class Print:
@@ -349,14 +394,6 @@ class Print:
 
 def constructor_name(enum_name: str, variant_id: int):
     return f"__{enum_name}__{variant_id}"
-
-@dataclass
-class IntValue:
-    value: int
-    def to_asm(self, ctx: AsmContext):
-        return f"""
-            mov eax, {self.value}
-        """
 
 @dataclass
 class Create:
@@ -385,7 +422,7 @@ class Create:
         return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
 
 def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
-    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Arg(i) for i in range(no_args)]))])
+    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [VarArg(ArgAddress(i)) for i in range(no_args)]))])
 
 def get_addr_from_rax() -> str:
     return f"""

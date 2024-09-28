@@ -18,7 +18,7 @@ def buildable(cls):
             obj = cls(*self.values.values())
             obj.location = location
             return obj
-    
+
     def add_builder_method(name):
         def set_field(self, value):
             self.values[name] = value
@@ -83,6 +83,14 @@ class MemberNode(Node):
     expr: ExprNode
     member_name: Token
 
+type AssignableNode = VarNode | MemberNode
+
+@buildable
+@dataclass
+class AssignNode(Node):
+    var: AssignableNode
+    expr: ExprNode
+
 @buildable
 @dataclass
 class FunctionTypeNode:
@@ -92,7 +100,7 @@ class FunctionTypeNode:
 @buildable
 @dataclass
 class ArgNode:
-    location: Location 
+    location: Location
     name: str
     type: Type
 
@@ -132,24 +140,24 @@ class DisNode(Node):
 @dataclass
 class PatternNode(Node):
     name: Token
-    args: List[Pattern | Value | None]
+    args: List[Pattern | ValueNode | None]
 
 @buildable
 @dataclass
 class FitBranchNode(Node):
     location: Location
-    left: Pattern | Value | None
+    left: Pattern | ValueNode | None
     right: ExprNode
-    
+
 @buildable
 @dataclass
 class FitNode(Node):
-    location: Location 
+    location: Location
     expr: ExprNode
     branches: List[FitBranchNode]
 
-type ExprNode = FitNode
-type StatementNode = ExprNode | RetNode | BlockNode 
+type ExprNode = FitNode | VarNode | ValueNode | CallNode | AssignNode
+type StatementNode = ExprNode | RetNode | BlockNode
 
 @buildable
 @dataclass
