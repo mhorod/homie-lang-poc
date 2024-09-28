@@ -157,6 +157,14 @@ long _make_obj7(long * args) {
 
 extern int main();
 
+long __builtin_operator_add(long *a) { return a[0] + a[1]; }
+long __builtin_operator_sub(long *a) { return a[0] - a[1]; }
+long __builtin_operator_mul(long *a) { return a[0] * a[1]; }
+long __builtin_operator_div(long *a) { return a[0] / a[1]; }
+long __builtin_operator_mod(long *a) { return a[0] % a[1]; }
+long __builtin_operator_eq(long *a) { return a[0] == a[1] ? a[2] : a[3]; }
+long __builtin_operator_less(long *a) { return a[0] < a[1] ? a[2] : a[3]; }
+
 void _start() {
     init(&H1, INITIAL_HEAP_SIZE, sizeof(H1Frame), (void *) 0x1000000000, (void *) 0x11000000000);
     init(&H3, INITIAL_HEAP_SIZE, sizeof(H3Frame), (void *) 0x2000000000, (void *) 0x12000000000);

@@ -3,6 +3,8 @@ from tree import *
 from copy import deepcopy
 from error_reporting import *
 
+from parsing.expressions import TOKENS_BUILTINS_MAP
+
 from tokens import NumberKind, StringKind
 
 from typechecking.types import *
@@ -11,21 +13,33 @@ from typechecking.context import *
 from typechecking.convert import *
 from typechecking.errors import *
 
-def typecheck(program):
-    simple_types = {
+def get_simple_types():
+    return {
         'Int' : SimpleType('Int'),
         'String': SimpleType('String'),
         'Void': SimpleType('Void')
     }
-    typechecker = Typechecker(simple_types)
+
+def get_builtins():
+    INT = SimpleType('Int')
+    TY = TyVar(0, 'T')
+    return {
+        **{ name : FunctionDeclaration(0, FunTy([INT, INT], INT)) for name in TOKENS_BUILTINS_MAP.values() },
+        '__builtin_operator_eq' : FunctionDeclaration(1, FunTy([INT, INT, TY, TY], TY)),
+        '__builtin_operator_less' : FunctionDeclaration(1, FunTy([INT, INT, TY, TY], TY))
+    }
+
+def typecheck(program):
+    typechecker = Typechecker(get_simple_types(), get_builtins())
     typechecker.typecheck(program)
     return typechecker.ctx, typechecker.report
 
 
 class Typechecker:
-    def __init__(self, simple_types):
+    def __init__(self, simple_types, bultins):
         self.ctx = TypingContext()
         self.ctx.simple_types = simple_types
+        self.ctx.functions = bultins
         self.report = ErrorReport()
         self.type_converter = TypeConverter(self.report, self.ctx)
 
@@ -56,10 +70,8 @@ class Typechecker:
             self.type_expr(tree)
 
     def typecheck_program(self, program: ProgramNode):
-        dises = self.find_dis_declarations(program)
-        self.ctx.dises = dises
-        functions = self.find_function_declarations(program)
-        self.ctx.functions = functions
+        self.ctx.dises = self.find_dis_declarations(program)
+        self.ctx.functions |= self.find_function_declarations(program)
 
         for item in program.items:
             self.typecheck(item)

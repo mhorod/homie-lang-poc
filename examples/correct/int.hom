@@ -1,0 +1,57 @@
+dis Bool { True, False }
+
+fun equal(a: Int, b: Int) -> Bool {
+    ret __builtin_operator_eq[Bool](a, b, Bool::True, Bool::False);
+}
+fun less(a: Int, b: Int) -> Bool {
+    ret __builtin_operator_less[Bool](a, b, Bool::True, Bool::False);
+}
+
+fun print_pos_int(a: Int) {
+    fit equal(a, 0) { True => ret };
+    let d = a % 10;
+    print_pos_int(a / 10);
+    fit equal(d, 0) { True => wrt "0" };
+    fit equal(d, 1) { True => wrt "1" };
+    fit equal(d, 2) { True => wrt "2" };
+    fit equal(d, 3) { True => wrt "3" };
+    fit equal(d, 4) { True => wrt "4" };
+    fit equal(d, 5) { True => wrt "5" };
+    fit equal(d, 6) { True => wrt "6" };
+    fit equal(d, 7) { True => wrt "7" };
+    fit equal(d, 8) { True => wrt "8" };
+    fit equal(d, 9) { True => wrt "9" };
+}
+
+fun print_int(a: Int) {
+    fit equal(a, 0) { True =>
+        wrt "0"
+    };
+    fit less(a, 0) { True => {
+        wrt "-";
+        a = 0 - a;
+    } };
+    print_pos_int(a);
+}
+
+dis Fib {
+    Pair(a: Int, b: Int)
+}
+
+fun print_fib_pair(x: Fib::Pair) {
+    wrt "(";
+    print_int(x.a);
+    wrt ", ";
+    print_int(x.b);
+    wrt ")\n";
+}
+
+fun next_fib_pair(x: Fib::Pair, cnt: Int) {
+    fit equal(cnt, 0) { True => ret };
+    print_fib_pair(x);
+    next_fib_pair(Fib::Pair(x.b, x.a + x.b), cnt - 1);
+}
+
+fun main() {
+    next_fib_pair(Fib::Pair(28657, 0-17711), 50);
+}

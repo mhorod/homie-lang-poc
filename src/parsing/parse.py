@@ -235,7 +235,10 @@ def operator_parser():
     return (
         op(SymbolKind.Dot, 0, Associativity.LEFT)
         | op(SymbolKind.Asterisk, 2, Associativity.LEFT)
+        | op(SymbolKind.Slash, 2, Associativity.LEFT)
+        | op(SymbolKind.Percent, 2, Associativity.LEFT)
         | op(SymbolKind.Plus, 3, Associativity.LEFT)
+        | op(SymbolKind.Minus, 3, Associativity.LEFT)
         | op(SymbolKind.Equals, 4, Associativity.LEFT)
     )
 
