@@ -209,3 +209,9 @@ class CallNode(Node):
 @dataclass
 class TupleLikeNode:
     parts: List[ExprNode]
+
+
+@buildable
+@dataclass
+class FunctionTypeArgsNode:
+    parts: List[ExprNode]

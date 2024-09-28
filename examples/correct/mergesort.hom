@@ -64,7 +64,7 @@ fun half[T](xs: List[T]) -> Pair[List[T], List[T]]::Pair {
     };
 }
 
-fun merge[T](xs: List[T], ys: List[T], less: T -> T -> Bool) -> List[T] {
+fun merge[T](xs: List[T], ys: List[T], less: (T, T) -> Bool) -> List[T] {
     let p = Pair[List[T], List[T]]::Pair(xs, ys);
     ret fit p {
         Pair Nil Nil => List[T]::Nil,
@@ -77,7 +77,7 @@ fun merge[T](xs: List[T], ys: List[T], less: T -> T -> Bool) -> List[T] {
     };
 }
 
-fun sort[T](xs: List[T], less: T -> T -> Bool) -> List[T] {
+fun sort[T](xs: List[T], less: (T, T) -> Bool) -> List[T] {
     let halves = half[T](xs);
     ret fit xs {
         Nil => List[T]::Nil,

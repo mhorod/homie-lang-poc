@@ -9,7 +9,6 @@ class FunctionCallOperator:
     kind = 0
 
 def make_expr(parts):
-    print("MAKING EXPR: ", parts)
     if isinstance(parts[0], OperatorNode):
         msg = Message(parts[0].location, f"Expression cannot begin with an operator")
         return Result.Err([Error(msg)])
@@ -20,10 +19,6 @@ def make_expr(parts):
         return unwrapped
     else:
         new_parts.append(unwrapped.parsed)
-
-    print("BEFORE: ", parts)
-    print("AFTER: ", new_parts)
-    print()
 
     for i in range(1, len(parts)):
         if not isinstance(new_parts[-1], OperatorNode) and not isinstance(parts[i], OperatorNode):

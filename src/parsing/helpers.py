@@ -66,12 +66,12 @@ def not_parse(parser):
     return Not(parser)
 
 
-def interspersed(value_parser, separator_parser, trailing=False):
-    return Interspersed(value_parser, separator_parser, trailing)
+def interspersed(value_parser, separator_parser, trailing=True):
+    return Interspersed(value_parser, separator_parser, trailing=trailing)
 
 
-def interspersed_positive(value_parser, separator_parser):
-    return Interspersed(value_parser, separator_parser, minimum=1)
+def interspersed_positive(value_parser, separator_parser, trailing=True):
+    return Interspersed(value_parser, separator_parser, minimum=1, trailing=trailing)
 
 
 def supply(supplier):
