@@ -59,7 +59,8 @@ def member_to_ll(member: tree.MemberNode, ctx: LLContext):
     return compiler.Deref(member_address_to_ll(member, ctx))
 
 def ret_to_ll(ret: tree.RetNode, ctx: LLContext):
-    return compiler.Return(expr_to_ll(ret.expr, ctx))
+    expr = compiler.Noop() if ret.expr is None else expr_to_ll(ret.expr, ctx)
+    return compiler.Return(expr)
 
 
 def let_to_ll(let: tree.LetNode, ctx: LLContext):

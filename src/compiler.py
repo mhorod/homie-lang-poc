@@ -9,6 +9,13 @@ type Expr = Create | Fit | FunName | Call | Var | Arg | Member
 type Statement = Let | Return
 
 @dataclass
+class Noop:
+    def pretty_print(self, depth):
+        return ""
+    def to_asm(self, ctx):
+        return ""
+
+@dataclass
 class Block:
     statements: List[Statement]
 

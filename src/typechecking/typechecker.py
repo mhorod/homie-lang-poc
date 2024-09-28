@@ -51,7 +51,7 @@ class Typechecker:
                 self.typecheck(statement)
             self.ctx.pop()
         elif isinstance(tree, RetNode):
-            self.type_expr(tree.expr)
+            self.type_ret(tree)
         else:
             self.type_expr(tree)
 
@@ -304,6 +304,10 @@ class Typechecker:
             return ErrorTy()
         else:
             return fun_ty.result_type
+
+    def type_ret(self, node: RetNode):
+        return_ty = SimpleType('Void') if node.expr is None else self.type_expr(node.expr)
+        return return_ty
 
 
     def convert_pattern(self, p: Pattern | ValueNode | None):

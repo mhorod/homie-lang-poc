@@ -170,7 +170,7 @@ type StatementNode = ExprNode | RetNode | BlockNode | FitStatementNode
 @buildable
 @dataclass
 class RetNode(Node):
-    expr: ExprNode
+    expr: ExprNode | None
 
 @buildable
 @dataclass

@@ -12,6 +12,9 @@ fun g() -> Int { ret 42; }
 fun h1() {}
 fun h2() -> Void {}
 
+// Void functions can use ret without expression
+fun h3() { ret; }
+
 // Functions can be called
 fun calls_f() -> Int {
     ret f(f(1, 2), g());
