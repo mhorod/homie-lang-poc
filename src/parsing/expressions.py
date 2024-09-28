@@ -8,32 +8,30 @@ from tokens import *
 class FunctionCallOperator:
     kind = 0
 
-class FunctionCall:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-    def to_list(self):
-        if isinstance(self.left, FunctionCall):
-            return self.left.to_list() + [self.right]
-        else:
-            return [self.left, self.right]
-
-    def flatten(self):
-        parts = self.to_list()
-        call_node =  CallNode(parts[0], parts[1:])
-        call_node.location = Location.wrap(parts[0].location, parts[-1].location)
-        return call_node
-
 def make_expr(parts):
+    print("MAKING EXPR: ", parts)
     if isinstance(parts[0], OperatorNode):
         msg = Message(parts[0].location, f"Expression cannot begin with an operator")
         return Result.Err([Error(msg)])
 
-    new_parts = [parts[0]]
+    new_parts = []
+    unwrapped = unwrap_tuple_like(parts[0])
+    if unwrapped.status != ResultStatus.Ok:
+        return unwrapped
+    else:
+        new_parts.append(unwrapped.parsed)
+
+    print("BEFORE: ", parts)
+    print("AFTER: ", new_parts)
+    print()
+
     for i in range(1, len(parts)):
         if not isinstance(new_parts[-1], OperatorNode) and not isinstance(parts[i], OperatorNode):
-            new_parts.append(OperatorNode(FunctionCallOperator(), 1, Associativity.LEFT))
+            if isinstance(parts[i], TupleLikeNode):
+                new_parts.append(OperatorNode(FunctionCallOperator(), 1, Associativity.LEFT))
+            else:
+                msg = Message(parts[i].location, "Expected operator or function call")
+                return Result.Err([Error(msg)])
         elif isinstance(new_parts[-1], OperatorNode) and isinstance(parts[i], OperatorNode):
             msg = Message(parts[i].location, "Expected expression")
             return Result.Err([Error(msg)])
@@ -43,7 +41,6 @@ def make_expr(parts):
     if result.status != ResultStatus.Ok:
         return result
     expr, _ = result.parsed
-    expr = flatten_functions(expr)
     return Result.Ok(expr)
 
 def build_expr(nodes, last_operator):
@@ -63,8 +60,24 @@ def build_expr(nodes, last_operator):
     return Result.Ok((left, nodes))
 
 def build_node(left, operator, right):
+    left = unwrap_tuple_like(left)
+    if left.status != ResultStatus.Ok:
+        return left
+    else:
+        left = left.parsed
+
+    if operator.name != FunctionCallOperator():
+        right = unwrap_tuple_like(right)
+        if right.status != ResultStatus.Ok:
+            return right
+        else:
+            right = right.parsed
+
+
     if operator.name == FunctionCallOperator():
-        return Result.Ok(FunctionCall(left, right))
+        node = CallNode(left, right.parts)
+        node.location = Location.wrap(left.location, right.location)
+        return Result.Ok(node)
     elif operator.name.kind == SymbolKind.Dot:
         if isinstance(right, VarNode):
             node = MemberNode(left, right.name)
@@ -88,21 +101,16 @@ def build_node(left, operator, right):
         call_node.location = Location.wrap(left.location, right.location)
         return Result.Ok(call_node)
 
-def flatten_functions(expr):
-    if isinstance(expr, FunctionCall):
-        return flatten_functions(expr.flatten())
-    elif isinstance(expr, CallNode):
-        new_node = CallNode(flatten_functions(expr.fun), [flatten_functions(arg) for arg in expr.arguments])
-        new_node.location = expr.location
-        return new_node
-    elif isinstance(expr, MemberNode):
-        new_node = MemberNode(flatten_functions(expr.expr), expr.member_name)
-        new_node.location = expr.location
-        return new_node
+
+def unwrap_tuple_like(node: TupleLikeNode):
+    if isinstance(node, TupleLikeNode):
+        if len(node.parts) != 1:
+            msg = Message(node.location, f"Unexpected function call syntax")
+            return Result.Err([Error(msg)])
+        else:
+            return Result.Ok(node.parts[0])
     else:
-        return expr
-
-
+        return Result.Ok(node)
 
 def right_op_first(left, right):
     '''

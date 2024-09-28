@@ -71,6 +71,17 @@ def type_parser():
 
     return Recursive(type_parser_impl)
 
+def function_args_type_parser(type_parser):
+    return (
+        sequence()
+            .then_drop(kind(DelimKind.OpenParen))
+            .commit()
+            .then_parse(repeat(type_parser))
+            .then_drop(kind(DelimKind.CloseParen))
+            .map(extract)
+    )
+
+
 def generic_args_parser(type_parser=type_parser()):
     wildcard_parser = builder(WildcardTypeNode.Builder).then_drop(kind(SymbolKind.QuestionMark))
     return bracketed(interspersed_positive(wildcard_parser | type_parser, kind(SymbolKind.Comma)))
@@ -98,10 +109,21 @@ def function_parser():
             .then_parse(FunNode.Builder.generics, generic_params_parser())
             .then_parse(FunNode.Builder.args, args_parser())
             .then_parse(FunNode.Builder.ret, optional(return_type_parser, None))
-            .then_parse(FunNode.Builder.body, block_parser(expr_parser()))
+            .then_parse(FunNode.Builder.body, block_parser(statement_parser()))
     )
 
-def fit_branch_parser(expr_parser):
+
+def fit_expr_parser(expr_parser):
+    branches_parser = braced(interspersed_positive(fit_expr_branch_parser(expr_parser), kind(SymbolKind.Comma)))
+    return (
+        builder(FitNode.Builder)
+            .then_drop(kind(KeywordKind.KwFit))
+            .commit()
+            .then_parse(FitNode.Builder.expr, expr_parser)
+            .then_parse(FitNode.Builder.branches, branches_parser)
+    )
+
+def fit_expr_branch_parser(expr_parser):
     return (
         builder(FitBranchNode.Builder)
             .then_drop(not_parse(kind(DelimKind.CloseBrace)))
@@ -111,8 +133,8 @@ def fit_branch_parser(expr_parser):
             .then_parse(FitBranchNode.Builder.right, expr_parser)
     )
 
-def fit_parser(expr_parser):
-    branches_parser = braced(interspersed_positive(fit_branch_parser(expr_parser), kind(SymbolKind.Comma)))
+def fit_stmt_parser(expr_parser, statement_parser):
+    branches_parser = braced(interspersed_positive(fit_stmt_branch_parser(statement_parser), kind(SymbolKind.Comma)))
     return (
         builder(FitNode.Builder)
             .then_drop(kind(KeywordKind.KwFit))
@@ -120,6 +142,17 @@ def fit_parser(expr_parser):
             .then_parse(FitNode.Builder.expr, expr_parser)
             .then_parse(FitNode.Builder.branches, branches_parser)
     )
+
+def fit_stmt_branch_parser(statement_parser):
+    return (
+        builder(FitBranchNode.Builder)
+            .then_drop(not_parse(kind(DelimKind.CloseBrace)))
+            .commit()
+            .then_parse(FitBranchNode.Builder.left, pattern_parser())
+            .then_drop(kind(SymbolKind.FatArrow))
+            .then_parse(FitBranchNode.Builder.right, statement_parser)
+    )
+
 
 def ret_parser(expr_parser):
     return (
@@ -150,10 +183,10 @@ def let_parser(expr_parser):
     )
 
 
-def block_parser(expr_parser):
+def block_parser(statement_parser):
     single_expr_parser = (
         sequence()
-            .then_parse(expr_parser)
+            .then_parse(statement_parser)
             .commit()
             .then_drop(kind(SymbolKind.Semicolon))
     )
@@ -187,16 +220,35 @@ def operator_parser():
 def expr_term_parser(expr_parser):
     return (
         value_parser()
-        | ret_parser(expr_parser)
-        | fit_parser(expr_parser)
-        | let_parser(expr_parser)
-        | parenthesized(expr_parser)
+        | fit_expr_parser(expr_parser)
+        | tuple_like_parser(expr_parser)
         | fun_instantiation_parser()
         | var_parser()
         | dis_constructor_parser()
-        | wrt_parser()
         | fail("expression")
         )
+
+def statement_parser(expr_parser=expr_parser()):
+    def statement_parser_impl(self):
+        return (
+            ret_parser(expr_parser)
+            | block_parser(self)
+            | wrt_parser()
+            | let_parser(expr_parser)
+            | fit_stmt_parser(expr_parser, self)
+            | expr_parser
+            | fail("statement")
+        )
+    return Recursive(statement_parser_impl)
+
+def tuple_like_parser(expr_parser=expr_parser()):
+    return (
+        builder(TupleLikeNode.Builder)
+            .then_drop(kind(DelimKind.OpenParen))
+            .commit()
+            .then_parse(TupleLikeNode.Builder.parts, interspersed(expr_parser, kind(SymbolKind.Comma), trailing=False))
+            .then_drop(kind(DelimKind.CloseParen))
+    )
 
 def fun_instantiation_parser():
     return (

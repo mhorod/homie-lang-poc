@@ -253,10 +253,11 @@ class OptionalParser[T](Parser):
 
 
 class Interspersed(Parser):
-    def __init__(self, parser, separator_parser, minimum=0):
+    def __init__(self, parser, separator_parser, minimum=0, trailing=True):
         self.parser = parser
         self.separator_parser = separator_parser
         self.minimum = minimum
+        self.trailing = trailing
 
     def run(self, cursor, backtracking=False):
         cursor_state = cursor.save()
@@ -264,6 +265,8 @@ class Interspersed(Parser):
         while True:
             if len(result) >= self.minimum:
                 backtracking = True
+            if self.trailing == False and len(result) > 0:
+                backtracking = False
 
             item = self.parser.run(cursor, backtracking)
             if item.status == ResultStatus.Ok:

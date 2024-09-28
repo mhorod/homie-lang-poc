@@ -14,12 +14,12 @@ fun h2() -> Void {}
 
 // Functions can be called
 fun calls_f() -> Int {
-    ret f 1 2;
+    ret f(f(1, 2), g());
 }
 
 // Functions can be passed as arguments to other functions
-fun apply(f: Int -> Int, x: Int) -> Int {
-    ret f x;
+fun apply(f: Int -> Int -> Int, x: Int) -> Int {
+    ret f(x, x);
 }
 
 
