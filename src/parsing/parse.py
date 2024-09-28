@@ -180,6 +180,7 @@ def operator_parser():
         op(SymbolKind.Dot, 0, Associativity.LEFT)
         | op(SymbolKind.Asterisk, 2, Associativity.LEFT)
         | op(SymbolKind.Plus, 3, Associativity.LEFT)
+        | op(SymbolKind.Equals, 4, Associativity.LEFT)
     )
 
 

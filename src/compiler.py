@@ -173,6 +173,7 @@ class Call:
                 push rax
             ''' for arg in reversed(self.args))}
             {self.function.to_asm(ctx)}
+            mov rdi, rsp
             call rax
             add rsp, {len(self.args) * 8}
             pop rbp
@@ -212,8 +213,10 @@ class Program:
         result = f"""
             section .text
             global main
-            extern _make_obj
-            extern heap
+            extern _make_obj0
+            extern _make_obj1
+            extern _make_obj3
+            extern _make_obj7
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """
@@ -223,28 +226,28 @@ class Program:
         return '\n\n'.join(f.pretty_print(0) for f in self.functions)
 
 @dataclass
-class Arg:
+class ArgAddress:
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rax, [rbp + {8 + 8 * self.i}]
+            lea rax, [rbp + {8 + 8 * self.i}]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"[{self.i}]"
+        return f"&[{self.i}]"
 
 @dataclass
-class Var:
+class VarAddress:
     var: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
-            mov rax, [rbp - {8 + 8 * self.var}]
+            lea rax, [rbp - {8 + 8 * self.var}]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"({self.var})"
+        return f"&({self.var})"
 
 @dataclass
-class Member:
-    """returns ith member"""
+class MemberAddress:
+    """returns ith member field address"""
     obj: Expr
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
@@ -252,13 +255,37 @@ class Member:
             {self.obj.to_asm(ctx)}
             {get_addr_from_rax()}
             add rax, {8 * self.i}
+        """
+    def pretty_print(self, depth = 0) -> str:
+        return f"&({self.obj.pretty_print(depth)}).{self.i}"
+
+@dataclass
+class Deref:
+    address: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.address.to_asm(ctx)}
             mov rax, [rax]
         """
     def pretty_print(self, depth = 0) -> str:
-        return f"({self.obj.pretty_print(depth)}).{self.i}"
+        s = self.address.pretty_print(depth)
+        return s[1:] if isinstance(self.address, (ArgAddress, VarAddress, MemberAddress)) else '*' + s
 
-
-
+@dataclass
+class Assign:
+    """assigns *var = obj """
+    var: Expr
+    obj: Expr
+    def to_asm(self, ctx: AsmContext) -> str:
+        return f"""
+            {self.var.to_asm(ctx)}
+            push rax
+            {self.obj.to_asm(ctx)}
+            pop rcx
+            mov [rcx], rax
+        """
+    def pretty_print(self, depth = 0) -> str:
+        return self.var.pretty_print(depth) + " = " + self.obj.pretty_print(depth)
 
 @dataclass
 class Print:
@@ -291,29 +318,32 @@ class Create:
     children: List[Expr]
 
     def to_asm(self, ctx: AsmContext):
-        create_children = ""
-        for child in self.children:
-            create_children += f"""
-                {child.to_asm(ctx)}
-                push rax
-            """
-        return f"""
-                {create_children}
-                push qword {len(self.children)}
-                push qword {self.type_id}
-                call _make_obj
-            """
+        if len(self.children) == 0:
+            return Call(FunName("_make_obj0"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
+
+        if len(self.children) == 1:
+            return Call(FunName("_make_obj1"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
+
+        if len(self.children) <= 3:
+            padded_children = self.children + [IntValue(0)] * (len(self.children) - 3)
+            return Call(FunName("_make_obj3"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
+
+        if len(self.children) <= 7:
+            padded_children = self.children + [IntValue(0)] * (len(self.children) - 7)
+            return Call(FunName("_make_obj7"), [IntValue(self.type_id)] + padded_children).to_asm(ctx)
+
+        raise Exception("Object too big to allocate.")
+
     def pretty_print(self, depth = 0) -> str:
         return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
 
 def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
-    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Arg(i) for i in range(no_args)]))])
+    return Fun(constructor_name(enum_name, variant_id), 0, [Return(Create(variant_id, [Deref(ArgAddress(i)) for i in range(no_args)]))])
 
 def get_addr_from_rax() -> str:
     return f"""
-        and rax, r12
-        sub rax, [heap]
-        neg rax
+        shl rax, 8
+        shr rax, 8
     """
 
 def get_variant_from_rax() -> str:
