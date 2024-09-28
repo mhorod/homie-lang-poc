@@ -78,8 +78,7 @@ class Fit:
         return f"""
             {self.obj.to_asm(ctx)}
             push rax
-            {'\n'.join(branch.to_asm(ctx, fit_end) for branch in self.branches[:-1])}
-            {self.branches[-1].content.to_asm(ctx)}
+            {'\n'.join(branch.to_asm(ctx, fit_end) for branch in self.branches)}
             {fit_end}:
             add rsp, 8
         """
