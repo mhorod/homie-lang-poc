@@ -1,0 +1,6 @@
+// duplications_dis_variants.hom
+
+// Duplicated dis variants
+dis Bar { A, A }
+
+fun main(){}

@@ -205,6 +205,13 @@ def let_parser(expr_parser):
             .then_parse(LetNode.Builder.value, expr_parser)
     )
 
+def assign_parser(expr_parser):
+    return (
+        builder(AssignNode.Builder)
+            .then_parse(AssignNode.Builder.var, expr_parser)
+            .then_drop(kind(SymbolKind.Equals))
+            .then_parse(AssignNode.Builder.expr, expr_parser)
+    )
 
 def block_parser(statement_parser):
     single_expr_parser = (
@@ -239,7 +246,6 @@ def operator_parser():
         | op(SymbolKind.Percent, 2, Associativity.LEFT)
         | op(SymbolKind.Plus, 3, Associativity.LEFT)
         | op(SymbolKind.Minus, 3, Associativity.LEFT)
-        | op(SymbolKind.Equals, 4, Associativity.LEFT)
     )
 
 
@@ -261,6 +267,7 @@ def statement_parser(expr_parser=expr_parser()):
             | block_parser(self)
             | wrt_parser()
             | let_parser(expr_parser)
+            | assign_parser(expr_parser)
             | fit_stmt_parser(expr_parser, self)
             | expr_parser
             | fail("statement")

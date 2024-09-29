@@ -195,7 +195,7 @@ class Typechecker:
             expr.ty = None
             return expr.ty
         elif isinstance(expr, AssignNode):
-            expr.ty = self.type_expr(expr.var)
+            expr.ty = None
             # todo check if expr.expr has compatible type
             return expr.ty
         else:
