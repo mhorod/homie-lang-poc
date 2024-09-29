@@ -1,3 +1,5 @@
+// mut.hom
+
 dis Pos {
     One,
     Twice(p: Pos),

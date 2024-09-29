@@ -1,0 +1,7 @@
+// duplications_functions.hom
+
+// Duplicated functions
+fun f() {}
+fun f() {}
+
+fun main(){}

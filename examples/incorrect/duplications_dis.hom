@@ -1,0 +1,7 @@
+// duplications_dis.hom
+
+// Duplicated dis
+dis Foo { A }
+dis Foo { B }
+
+fun main(){}
