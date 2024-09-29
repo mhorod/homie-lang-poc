@@ -6,7 +6,7 @@ for test in tqdm(listdir('examples/correct')):
     output_file = test.replace(".hom", ".ok")
     comp_code, comp_out = getstatusoutput(f'bash run.sh examples/correct/{test}')
     if comp_code:
-        print(f'Compilatorion of {test} failed\n{comp_out}')
+        print(f'Compilation of {test} failed\n{comp_out}')
         exit(1)
 
     exec_code, _ = getstatusoutput(f'./build/program.out > build/exec.stdout')
