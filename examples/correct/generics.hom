@@ -7,4 +7,6 @@ dis Optional[T] {
 }
 
 // Functions can be generic
-fun f[T](x: T) -> Optional[T] { ret Optional[T]::Some x; }
+fun f[T](x: T) -> Optional[T] { ret Optional[T]::Some(x); }
+
+fun main() {}
