@@ -1,0 +1,6 @@
+// duplications_generics.hom
+
+// Duplicated generic arguments
+fun g[T, T]() {}
+
+fun main(){}
