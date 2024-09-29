@@ -126,3 +126,8 @@ def variant_has_no_member(location, member_name, ty, variant_node):
     msg = Message(location, f"Variant {ty} has no member {member_name}")
     comment = Message(variant_node.location, "Variant defined here")
     return Error(msg, [comment])
+
+def return_type_mismatch(location, ret_ty, fun_ty, fun_node: FunNode):
+    msg = Message(location, f"Return type {ret_ty} does not match declared type {fun_ty.result_type}")
+    comment = Message(fun_node.ret.location, "Declared here")
+    return Error(msg, [comment])

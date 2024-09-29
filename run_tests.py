@@ -3,6 +3,7 @@ from os import listdir
 from tqdm import tqdm
 
 for test in tqdm(listdir('examples/correct')):
+    output_file = test.replace(".hom", ".ok")
     comp_code, comp_out = getstatusoutput(f'bash run.sh examples/correct/{test}')
     if comp_code:
         print(f'Compilatorion of {test} failed\n{comp_out}')
@@ -12,9 +13,9 @@ for test in tqdm(listdir('examples/correct')):
     getoutput(f'echo Return code is {exec_code} >> build/exec.stdout')
 
     if not test in listdir('examples/correct_outputs'):
-        getoutput(f'cp build/exec.stdout examples/correct_outputs/{test}')
+        getoutput(f'cp build/exec.stdout examples/correct_outputs/{output_file}')
 
-    diffout = getoutput(f'diff build/exec.stdout examples/correct_outputs/{test}')
+    diffout = getoutput(f'diff build/exec.stdout examples/correct_outputs/{output_file}')
     if diffout:
         print(f'Output of {test} changed')
         exit(1)

@@ -106,6 +106,7 @@ KEYWORD_MAP = {
 KIND_TO_STR = {
     **{ kind : text for text, kind in KEYWORD_MAP.items() },
     **{ kind : text for text, kind in SYMBOL_MAP.items() },
+    EofKind.Eof: "<eof>",
     NameKind.VarName: "lowercase identifier",
     NameKind.EnumName: "uppercase identifier"
 }

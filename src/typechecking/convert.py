@@ -24,6 +24,8 @@ class TypeConverter:
             return self.convert_dis_constructor_type(parsed_type)
         elif isinstance(parsed_type, WildcardTypeNode):
             return WildcardTy()
+        elif isinstance(parsed_type, VoidTypeNode):
+            return SimpleType('Void')
         else:
             raise Exception(f"Cannot convert {parsed_type} into Ty")
 
@@ -88,3 +90,12 @@ class TypeConverter:
         self.report.error(Error(msg))
 
         return ErrorTy()
+
+    def convert_pattern(self, p: Pattern | ValueNode | None):
+        # TODO: typecheck pattern with known dis variants
+        if p is None:
+            return None
+        elif isinstance(p, ValueNode):
+            return self.type_value(p)
+        else:
+            return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])

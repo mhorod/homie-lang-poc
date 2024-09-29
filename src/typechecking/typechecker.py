@@ -107,9 +107,13 @@ class Typechecker:
             return
         self.ctx.push()
         self.ctx.add_generics(fun.generics)
+        self.ctx.current_function_ty = fun_ty
+        self.ctx.current_function_node = fun
         for arg, arg_ty in zip(fun.args, fun_ty.arg_types):
             self.ctx.add_local_var(arg.name.text, arg_ty)
         self.typecheck(fun.body)
+        self.ctx.current_function_ty = None
+        self.ctx.current_function_node = None
         self.ctx.pop()
 
     def type_function_instantiation(self, fun_inst: FunInstNode):
@@ -249,7 +253,7 @@ class Typechecker:
         if not isinstance(fit_expr, VarNode) or not isinstance(branch.left, PatternNode):
             return self.type_fit_branch_right(branch.right, is_fit_statement)
         else:
-            pat = self.convert_pattern(branch.left)
+            pat = self.type_converter.convert_pattern(branch.left)
             self.validate_pattern_valid_for_ty(branch.left, fit_expr_ty)
             self.ctx.push()
             self.ctx.add_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
@@ -318,18 +322,15 @@ class Typechecker:
             return fun_ty.result_type
 
     def type_ret(self, node: RetNode):
+        fun_ty = self.ctx.current_function_ty
         return_ty = SimpleType('Void') if node.expr is None else self.type_expr(node.expr)
+        if not is_subtype(return_ty, fun_ty.result_type):
+            fun_node = self.ctx.current_function_node
+            self.report.error(return_type_mismatch(node.location, return_ty, fun_ty, fun_node))
+            print(fun_ty, return_ty)
         return return_ty
 
 
-    def convert_pattern(self, p: Pattern | ValueNode | None):
-        # TODO: typecheck pattern with known dis variants
-        if p is None:
-            return None
-        elif isinstance(p, ValueNode):
-            return self.type_value(p)
-        else:
-            return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])
 
 
 

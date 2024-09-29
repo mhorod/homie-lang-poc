@@ -32,7 +32,7 @@ def buildable(cls):
 
 
 
-type TypeNode = DisTypeNode | FunctionTypeNode | WildcardTypeNode
+type TypeNode = DisTypeNode | FunctionTypeNode | WildcardTypeNode | VoidTypeNode
 
 class Node:
     location: Location
@@ -40,6 +40,11 @@ class Node:
 @buildable
 @dataclass
 class WildcardTypeNode(Node):
+    pass
+
+@buildable
+@dataclass
+class VoidTypeNode(Node):
     pass
 
 @buildable

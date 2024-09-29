@@ -127,7 +127,10 @@ class BuilderParser(Parser):
                 elif isinstance(part, BuilderParser.Parse):
                     part.builder_method(builder, result.parsed)
         end = cursor.prev().location
-        return Result.Ok(builder.build(Location.wrap(begin, end)))
+        location = Location.wrap(begin, end)
+        if location.begin >= location.end:
+            location.end = location.begin + 1
+        return Result.Ok(builder.build(location))
 
     def __repr__(self):
         return f"BuilderParser({self.builder})"
