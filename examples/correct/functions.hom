@@ -39,7 +39,7 @@ fun give_to_consumer(consumer: Int -> Void) {
 }
 
 // There is no currying but the type syntax for functions returning functions is similar to the functional one
-fun chained_call(f: (Int, Int) -> (Int, Int) -> Int) {
+fun chained_call(f: (Int, Int) -> (Int, Int) -> Int) -> Int {
     ret f(1, 2)(3, 4);
 }
 

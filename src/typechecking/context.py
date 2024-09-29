@@ -30,6 +30,8 @@ class TypingContext:
         self.functions = {}
         self.fun_nodes = {}
         self.simple_types = {}
+        self.current_function_node = None
+        self.current_function_ty = None
         self.stack = [TypingContextFrame()]
 
     def push(self):

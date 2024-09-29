@@ -22,7 +22,7 @@ fun g(n: Nat) {
     };
 }
 
-fun fit_as_statement(n: Nat) {
+fun fit_as_statement(n: Nat) -> Nat {
     // Fit can also be used as a statement, not expression
     fit n {
         Zero => ret Nat::Succ(n),

@@ -18,7 +18,7 @@ def program_parser():
     )
 
 def item_parser():
-    return enum_parser() | function_parser() | expr_parser() | fail("item")
+    return enum_parser() | function_parser() | fail("item")
 
 def enum_parser():
     variants_parser = braced(interspersed_positive(dis_variant_parser(), kind(SymbolKind.Comma)))
@@ -131,10 +131,13 @@ def function_parser():
             .then_parse(FunNode.Builder.name, kind(NameKind.VarName))
             .then_parse(FunNode.Builder.generics, generic_params_parser())
             .then_parse(FunNode.Builder.args, args_parser())
-            .then_parse(FunNode.Builder.ret, optional(return_type_parser, None))
+            .then_parse(FunNode.Builder.ret, return_type_parser | parse_void_type())
             .then_parse(FunNode.Builder.body, block_parser(statement_parser()))
     )
 
+
+def parse_void_type():
+    return builder(VoidTypeNode.Builder)
 
 def fit_expr_parser(expr_parser):
     branches_parser = braced(interspersed_positive(fit_expr_branch_parser(expr_parser), kind(SymbolKind.Comma)))
