@@ -33,6 +33,8 @@ def buildable(cls):
 
 
 type TypeNode = DisTypeNode | FunctionTypeNode | WildcardTypeNode | VoidTypeNode
+type ExprNode = FitExprNode | VarNode | ValueNode | CallNode | AssignNode
+type StatementNode = ExprNode | RetNode | BlockNode | FitStatementNode | WriteNode
 
 class Node:
     location: Location
@@ -50,10 +52,11 @@ class VoidTypeNode(Node):
 @buildable
 @dataclass
 class ProgramNode(Node):
-    items: list
+    items: list[Node]
 
+@buildable
 @dataclass
-class Write:
+class WriteNode(Node):
     value: str
     def __init__(self, value: str):
         self.value = ast.literal_eval(value)
@@ -67,20 +70,20 @@ class GenericParamsNode(Node):
 @dataclass
 class DisTypeNode(Node):
     name: Token
-    generics: List[Type]
+    generics: List[TypeNode]
 
 
 @buildable
 @dataclass
 class DisConstructorNode(Node):
-    name: str
-    generics: List[Type]
-    variant_name: str
+    name: Token
+    generics: List[TypeNode]
+    variant_name: Token
 
 @buildable
 @dataclass
 class VarNode(Node):
-    name: str
+    name: Token
 
 @buildable
 @dataclass
@@ -88,26 +91,23 @@ class MemberNode(Node):
     expr: ExprNode
     member_name: Token
 
-type AssignableNode = VarNode | MemberNode
-
 @buildable
 @dataclass
 class AssignNode(Node):
-    var: AssignableNode
+    var: VarNode | MemberNode
     expr: ExprNode
 
 @buildable
 @dataclass
 class FunctionTypeNode:
-    args: List[Type]
-    ret: Type
+    args: List[TypeNode]
+    ret: TypeNode
 
 @buildable
 @dataclass
 class ArgNode:
-    location: Location
-    name: str
-    type: Type
+    name: Token
+    type: TypeNode
 
 class Associativity(Enum):
     NONE = auto()
@@ -168,10 +168,6 @@ class FitStatementNode(Node):
     expr: ExprNode
     branches: List[FitBranchNode]
 
-
-type ExprNode = FitExprNode | VarNode | ValueNode | CallNode | AssignNode
-type StatementNode = ExprNode | RetNode | BlockNode | FitStatementNode
-
 @buildable
 @dataclass
 class RetNode(Node):
@@ -197,10 +193,10 @@ class ValueNode(Node):
 @buildable
 @dataclass
 class FunNode(Node):
-    name: str
+    name: Token
     generics: GenericParamsNode
     args: List[ArgNode]
-    ret: Type
+    ret: TypeNode
     body: BlockNode
 
 
@@ -208,7 +204,7 @@ class FunNode(Node):
 @dataclass
 class FunInstNode(Node):
     name: Token
-    generics: List[Type]
+    generics: List[TypeNode]
 
 
 @buildable

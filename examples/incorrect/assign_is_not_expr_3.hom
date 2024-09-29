@@ -1,0 +1,6 @@
+// assign_is_not_expr_3.hom
+
+fun main() {
+    let x = 1;
+    let y = x + (x = x);
+}

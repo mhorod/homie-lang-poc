@@ -1,28 +1,7 @@
-from enum import Enum, auto
-
 from tokens import Token
 from source import Location
-from error_reporting import Error, Message
+from error_reporting import *
 from tree import *
-
-class Words(Enum):
-    ARGUMENTS = auto()
-    GENERIC_ARGUMENTS = auto()
-    WAS = auto()
-
-PLURAL_DICTIONARY = {
-    Words.ARGUMENTS: ("argument", "arguments"),
-    Words.GENERIC_ARGUMENTS: ("generic argument", "generic arguments"),
-    Words.WAS: ("was", "were")
-}
-
-def pluralize(count, word):
-    if word in PLURAL_DICTIONARY:
-        single, plural = PLURAL_DICTIONARY[word]
-        return single if count == 1 else plural
-    else:
-        return word
-
 
 def dis_does_not_exist(location, dis_name):
     msg = Message(location, f"Dis {dis_name} does not exist")
@@ -31,13 +10,6 @@ def dis_does_not_exist(location, dis_name):
 def dis_has_no_variant(location, dis_name, variant_name):
     msg = Message(location, f"Dis {dis_name} has no variant {variant_name}")
     return Error(msg)
-
-
-def dis_name_and_generics_span(dis_node: DisNode):
-    return Location.wrap(dis_node.name.location, dis_node.generics.location)
-
-def fun_name_and_generics_span(fun_node: FunNode):
-    return Location.wrap(fun_node.name.location, fun_node.generics.location)
 
 def dis_generic_arguments_mismatch(location, dis_node, expected, actual):
     dis_name = dis_node.name.text
@@ -96,6 +68,12 @@ def duplicated_dis_variant(dis_name, variant: DisVariantNode, first_defined: Dis
 def duplicated_generics(name: Token, first_defined: Token):
     reason = Message(name.location, f"Duplicated generic parameter: {name.text}")
     comment = Message(first_defined.location, "First defined here")
+    return Error(reason, [comment])
+
+
+def duplicated_variable(var: LetNode, first_defined: Token):
+    reason = Message(var.name.location,  f"Duplicated variable: {var.name.text}")
+    comment = Message(first_defined.location, f"First defined here")
     return Error(reason, [comment])
 
 def expected_dis_type(location: Location, found):

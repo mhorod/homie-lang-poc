@@ -99,7 +99,7 @@ def enum_cons_to_ll(cons: tree.DisConstructorNode, ctx:LLContext):
     else:
         return compiler.FunName(compiler.constructor_name(cons.name.text, enum_def.get_variant_id(cons.variant_name.text)))
 
-def write_to_ll(write: tree.Write, ctx: LLContext):
+def write_to_ll(write: tree.WriteNode, ctx: LLContext):
     return compiler.Print(write.value)
 
 
@@ -120,7 +120,7 @@ def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
         return let_to_ll(expr, ctx)
     elif isinstance(expr, tree.DisConstructorNode):
         return enum_cons_to_ll(expr, ctx)
-    elif isinstance(expr, tree.Write):
+    elif isinstance(expr, tree.WriteNode):
         return write_to_ll(expr, ctx)
     elif isinstance(expr, tree.ValueNode):
         return value_to_ll(expr, ctx)

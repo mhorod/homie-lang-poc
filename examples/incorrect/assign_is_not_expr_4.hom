@@ -1,0 +1,8 @@
+// assign_is_not_expr_4.hom
+
+fun f(a: Int) {}
+
+fun main() {
+    let x = 1;
+    f(x = 1);
+}

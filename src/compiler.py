@@ -4,7 +4,7 @@ from typing import *
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from typechecking.typechecker import get_builtins
+from builtin import BUILTIN_FUNCTIONS
 
 type Expr = Create | Fit | FunName | Call | VarAddress | ArgAddress | MemberAddress | Deref
 
@@ -238,7 +238,7 @@ class Program:
             extern _make_obj1
             extern _make_obj3
             extern _make_obj7
-            {'\n'.join(f'extern {name}' for name in get_builtins().keys())}
+            {'\n'.join(f'extern {name}' for name in BUILTIN_FUNCTIONS.keys())}
 
             {'\n'.join(f.to_asm(ctx) for f in self.functions)}
         """

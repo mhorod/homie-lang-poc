@@ -1,8 +1,9 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from parsing.combinators import *
 from tree import *
 from tokens import *
+from builtin import fix_builtin_token
 
 @dataclass
 class FunctionCallOperator:
@@ -54,17 +55,6 @@ def build_expr(nodes, last_operator):
             left = left_result.parsed
     return Result.Ok((left, nodes))
 
-TOKENS_BUILTINS_MAP = {
-    '+': '__builtin_operator_add',
-    '-': '__builtin_operator_sub',
-    '*': '__builtin_operator_mul',
-    '/': '__builtin_operator_div',
-    '%': '__builtin_operator_mod'
-}
-
-def fix_builtin_token(token: Token) -> Token:
-    return replace(token, text = TOKENS_BUILTINS_MAP[token.text])
-
 def build_node(left, operator, right):
     left = unwrap_tuple_like(left)
     if left.status != ResultStatus.Ok:
@@ -79,7 +69,6 @@ def build_node(left, operator, right):
         else:
             right = right.parsed
 
-
     if operator.name == FunctionCallOperator():
         node = CallNode(left, right.parts)
         node.location = Location.wrap(left.location, right.location)
@@ -93,20 +82,15 @@ def build_node(left, operator, right):
             msg = Message(right.location, f"Expected member name")
             return Result.Err([Error(msg)])
     elif operator.name.kind == SymbolKind.Equals:
-        if isinstance(left, (VarNode, MemberNode)):
-            node = AssignNode(left, right)
-            node.location = Location.wrap(left.location, right.location)
-            return Result.Ok(node)
-        else:
-            msg = Message(left.location, f"Can only assign to variables and members")
-            return Result.Err([Error(msg)])
+        node = AssignNode(left, right)
+        node.location = Location.wrap(left.location, right.location)
+        return Result.Ok(node)
     else:
         op = VarNode(fix_builtin_token(operator.name))
         op.location = operator.location
         call_node = CallNode(op, [left, right])
         call_node.location = Location.wrap(left.location, right.location)
         return Result.Ok(call_node)
-
 
 def unwrap_tuple_like(node: TupleLikeNode):
     if isinstance(node, TupleLikeNode):

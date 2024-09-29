@@ -1,6 +1,9 @@
+from enum import Enum, auto
 from dataclasses import dataclass
-from source import Location
 from termcolor import *
+
+from source import Location
+from tree import DisNode, FunNode
 
 @dataclass
 class Message:
@@ -155,3 +158,27 @@ def get_line_digits(messages):
 def location_text(location):
     line, column = location.begin_line_and_column()
     return f"--> file {location.source.name}, line {line + 1}, column {column + 1}"
+
+class Words(Enum):
+    ARGUMENTS = auto()
+    GENERIC_ARGUMENTS = auto()
+    WAS = auto()
+
+PLURAL_DICTIONARY = {
+    Words.ARGUMENTS: ("argument", "arguments"),
+    Words.GENERIC_ARGUMENTS: ("generic argument", "generic arguments"),
+    Words.WAS: ("was", "were")
+}
+
+def pluralize(count, word):
+    if word in PLURAL_DICTIONARY:
+        single, plural = PLURAL_DICTIONARY[word]
+        return single if count == 1 else plural
+    else:
+        return word
+
+def dis_name_and_generics_span(dis_node: DisNode):
+    return Location.wrap(dis_node.name.location, dis_node.generics.location)
+
+def fun_name_and_generics_span(fun_node: FunNode):
+    return Location.wrap(fun_node.name.location, fun_node.generics.location)

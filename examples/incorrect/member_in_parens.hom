@@ -1,0 +1,8 @@
+// member_in_parens.hom
+
+dis A { A(a: Int) }
+
+fun main() {
+    let x = A::A(1);
+    x.(a) = 2;
+}

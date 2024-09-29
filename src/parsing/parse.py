@@ -190,12 +190,10 @@ def ret_parser(expr_parser):
 
 def wrt_parser():
     return (
-        sequence()
-        .then_drop(kind(KeywordKind.KwWrt))
-        .commit()
-        .then_parse(kind(StringKind.String).map(get_text))
-        .map(extract)
-        .map(Write)
+        builder(WriteNode.Builder)
+            .then_drop(kind(KeywordKind.KwWrt))
+            .commit()
+            .then_parse(WriteNode.Builder.value, kind(StringKind.String).map(get_text))
     )
 
 def let_parser(expr_parser):

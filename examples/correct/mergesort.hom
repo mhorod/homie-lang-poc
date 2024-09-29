@@ -21,10 +21,6 @@ dis Bool {
     False
 }
 
-dis Void {
-    Void
-}
-
 fun less(a: Nat, b: Nat) -> Bool {
     let p = Pair[Nat, Nat]::Pair(a, b);
     ret fit p {
@@ -114,7 +110,7 @@ fun nat_to_dig(n: Nat) -> Dig {
     };
 }
 
-fun print(n: Dig) -> Void {
+fun print(n: Dig) {
     fit n {
         Zero => wrt "0",
         One => wrt "1",
@@ -127,13 +123,11 @@ fun print(n: Dig) -> Void {
         Eight => wrt "8",
         Nine => wrt "9"
     };
-    ret Void::Void;
 }
 
 fun print_with_space(n: Dig) -> Void {
     print(n);
     wrt " ";
-    ret Void::Void;
 }
 
 fun cons(x: Nat, xs: List[Nat]) -> List[Nat] {

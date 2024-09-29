@@ -1,3 +1,5 @@
+// int.hom
+
 dis Bool { True, False }
 
 fun equal(a: Int, b: Int) -> Bool {
