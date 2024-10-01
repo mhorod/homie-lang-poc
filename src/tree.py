@@ -145,7 +145,12 @@ class DisNode(Node):
 @dataclass
 class PatternNode(Node):
     name: Token
-    args: List[Pattern | ValueNode | None]
+    args: List[Pattern | ValueNode | WildcardPatternNode]
+
+@buildable
+@dataclass
+class CatchallPatternNode(Node):
+    pass
 
 @buildable
 @dataclass

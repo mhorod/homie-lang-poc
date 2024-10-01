@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 from tree import TypeNode
 
 type Ty = WildcardTy | TyVar | FunTy | DisTy | ErrorTy | None | SimpleType
@@ -86,22 +86,49 @@ class FunTy:
         if self.result_type is None:
             res = "Void"
         return f"{args} -> {res}"
-@dataclass
+
+@dataclass(frozen=True)
 class TyPattern:
     name: str
-    children: List[TyPattern | None] | None
+    children: Tuple[TyPattern | CatchallPattern] | None
+
+    def __str__(self):
+        children = ""
+        if self.children is not None:
+            children = " ".join(self.wrap_child(c) for c in self.children)
+        if children:
+            children = f" {children}"
+        return f"{self.name}{children}"
+
+    def wrap_child(self, c):
+        s = str(c)
+        if c.is_compound():
+            return f"({s})"
+        else:
+            return s
+
+    def is_compound(self):
+        return self.children is not None and len(self.children) > 0
+
+@dataclass(frozen=True)
+class CatchallPattern:
+    def __str__(self):
+        return "_"
+
+    def is_compound(self):
+        return False
 
 @dataclass
 class DisTy:
     name: str
     generic_types: List[Ty]
-    pattern: TyPattern | None
+    pattern: TyPattern
 
     def __str__(self):
         generics = ", ".join(str(ty) for ty in self.generic_types)
         if generics:
             generics = f"[{generics}]"
-        pattern = "" if self.pattern is None else f"::{self.pattern.name}"
+        pattern = "" if isinstance(self.pattern, CatchallPattern) else f"::{self.pattern.name}"
         return f"{self.name}{generics}{pattern}"
 
 

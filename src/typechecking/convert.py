@@ -14,8 +14,6 @@ class TypeConverter:
         self.ctx = ctx
 
     def convert_type(self, parsed_type: TypeNode):
-        if parsed_type is None:
-            return None
         if isinstance(parsed_type, DisTypeNode):
             return self.convert_dis_type(parsed_type)
         elif isinstance(parsed_type, FunctionTypeNode):
@@ -52,7 +50,7 @@ class TypeConverter:
                 generic_types = [self.convert_type(gen) for gen in parsed_type.generics]
                 if any(isinstance(ty, ErrorTy) for ty in generic_types):
                     return ErrorTy()
-                return DisTy(parsed_type.name.text, generic_types, None)
+                return DisTy(parsed_type.name.text, generic_types, CatchallPattern())
         elif parsed_type.name.text in self.ctx.simple_types:
             if parsed_type.generics:
                 raise Exception(f"Type {parsed_type.name} is not generic")
@@ -93,9 +91,9 @@ class TypeConverter:
 
     def convert_pattern(self, p: Pattern | ValueNode | None):
         # TODO: typecheck pattern with known dis variants
-        if p is None:
-            return None
+        if isinstance(p, CatchallPatternNode):
+            return CatchallPattern()
         elif isinstance(p, ValueNode):
             return self.type_value(p)
         else:
-            return TyPattern(p.name.text, [self.convert_pattern(arg) for arg in p.args])
+            return TyPattern(p.name.text, tuple([self.convert_pattern(arg) for arg in p.args]))

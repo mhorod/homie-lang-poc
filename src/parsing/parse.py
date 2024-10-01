@@ -314,7 +314,7 @@ def pattern_parser():
     return Recursive(pattern_parser_impl)
 
 def catchall_parser():
-    return ExpectKind(SymbolKind.Underscore).map(const(None))
+    return builder(CatchallPatternNode.Builder).then_drop(kind(SymbolKind.Underscore))
 
 def value_parser():
     return (

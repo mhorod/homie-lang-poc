@@ -98,6 +98,17 @@ def duplicated_generics(name: Token, first_defined: Token):
     comment = Message(first_defined.location, "First defined here")
     return Error(reason, [comment])
 
+def duplicated_branch_patterns(location: Location, pat, prev_defined: Location):
+    reason = Message(location, f"Duplicated branch pattern {pat}")
+    comment = Message(prev_defined, "Previously defined here")
+    return Error(reason, [comment])
+
+def shadowing_branch_patterns(first_loc: Location, first_pat, second_loc: Location, second_pat):
+    reason = Message(first_loc, f"Pattern {first_pat} shadows pattern {second_pat}.")
+    comment = Message(second_loc, f"{second_pat} is used here. Consider changing order of the branches.")
+    return Error(reason, [comment])
+
+
 def expected_dis_type(location: Location, found):
     msg = Message(location, f"Expected dis type, got {found}")
     return Error(msg)
@@ -131,3 +142,7 @@ def return_type_mismatch(location, ret_ty, fun_ty, fun_node: FunNode):
     msg = Message(location, f"Return type {ret_ty} does not match declared type {fun_ty.result_type}")
     comment = Message(fun_node.ret.location, "Declared here")
     return Error(msg, [comment])
+
+def fit_is_not_exhaustive(fit, missing):
+    msg = Message(fit.location, f"Fit is not exhaustive. Missing pattern {missing}")
+    return Error(msg)

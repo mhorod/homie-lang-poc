@@ -1,0 +1,12 @@
+// invalid_fit_pattern.hom
+
+dis A { A }
+
+fun f(x: A) -> Int {
+   ret fit x {
+        // Dis A has no variant B
+        B => 1,
+   };
+}
+
+fun main() {}

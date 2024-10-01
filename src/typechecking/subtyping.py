@@ -1,10 +1,10 @@
 from typechecking.types import *
 
-def find_superpattern(p1: TyPattern | None, p2: TyPattern | None) -> TyPattern | None:
-    if p1 is None or p2 is None:
-        return None
+def find_superpattern(p1: TyPattern, p2: TyPattern) -> TyPattern | None:
+    if isinstance(p1, CatchallPattern) or isinstance(p2, CatchallPattern):
+        return CatchallPattern()
     if p1.name != p2.name:
-        return None
+        return CatchallPattern()
     if p1.children is None or p2.children is None:
         return TyPattern(p1.name, None)
     if len(p1.children) != len(p2.children):
@@ -43,9 +43,9 @@ def find_supertype(t1: Ty, t2: Ty) -> Ty:
 def is_subpattern(sub: TyPattern | None, sup: TyPattern | None) -> bool:
     if sub == sup:
         return True
-    if sup is None:
+    if isinstance(sup, CatchallPattern):
         return True
-    if sub is None:
+    if isinstance(sub, CatchallPattern):
         return False
     if sub.name != sup.name:
         return False
@@ -55,7 +55,7 @@ def is_subpattern(sub: TyPattern | None, sup: TyPattern | None) -> bool:
         return False
     if len(sub.children) != len(sup.children):
         raise Exception("Unreachable reached! TyPattern was supposed to be validated!")
-    return all(is_subpattern(a, b) for (a, b) in zip(sub.children, sub.children))
+    return all(is_subpattern(a, b) for (a, b) in zip(sub.children, sup.children))
 
 def is_subtype(sub, sup):
     if sub == sup:
