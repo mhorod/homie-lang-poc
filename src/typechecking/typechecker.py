@@ -12,6 +12,7 @@ from typechecking.subtyping import *
 from typechecking.context import *
 from typechecking.convert import *
 from typechecking.errors import *
+from typechecking.exhaustiveness import *
 
 def get_simple_types():
     return {
@@ -42,6 +43,7 @@ class Typechecker:
         self.ctx.functions = bultins
         self.report = ErrorReport()
         self.type_converter = TypeConverter(self.report, self.ctx)
+        self.exhausiveness_checker = ExhaustivenessChecker(self.report, self.ctx)
 
     def typecheck(self, tree):
         if isinstance(tree, ProgramNode):
@@ -247,19 +249,47 @@ class Typechecker:
         ty = self.type_fit_branch(expr, expr_ty, fit.branches[0], is_fit_statement)
         for branch in fit.branches[1:]:
             ty = find_supertype(ty, self.type_fit_branch(expr, expr_ty, branch, is_fit_statement))
+
+        if not isinstance(ty, ErrorTy) and self.are_branch_patterns_duplicated(fit):
+            ty = ErrorTy()
+
+        if not is_fit_statement and not isinstance(ty, ErrorTy):
+            self.exhausiveness_checker.check_fit_exhaustiveness(fit, expr_ty)
         return ty
 
     def type_fit_branch(self, fit_expr: ExprNode, fit_expr_ty: Ty, branch: FitBranchNode, is_fit_statement):
+        pat = self.type_converter.convert_pattern(branch.left)
+        valid = self.validate_pattern_valid_for_ty(branch.left, fit_expr_ty)
+        if not valid:
+            return ErrorTy()
+
         if not isinstance(fit_expr, VarNode) or not isinstance(branch.left, PatternNode):
             return self.type_fit_branch_right(branch.right, is_fit_statement)
         else:
-            pat = self.type_converter.convert_pattern(branch.left)
-            self.validate_pattern_valid_for_ty(branch.left, fit_expr_ty)
             self.ctx.push()
             self.ctx.add_local_var(fit_expr.name.text, DisTy(fit_expr_ty.name, fit_expr_ty.generic_types, pat))
             result = self.type_fit_branch_right(branch.right, is_fit_statement)
             self.ctx.pop()
             return result
+
+    def are_branch_patterns_duplicated(self, fit: FitExprNode | FitStatementNode):
+        patterns = [self.type_converter.convert_pattern(branch.left) for branch in fit.branches]
+        for i in range(len(patterns)):
+            for j in range(i + 1, len(patterns)):
+                if patterns[i] == patterns[j]:
+                    err = duplicated_branch_patterns(
+                        fit.branches[j].left.location,
+                        patterns[i],
+                        fit.branches[i].left.location)
+                    self.report.error(err)
+                elif is_subpattern(patterns[j], patterns[i]):
+                    err = shadowing_branch_patterns(
+                        fit.branches[i].left.location,
+                        patterns[i],
+                        fit.branches[j].left.location,
+                        patterns[j],
+                    )
+                    self.report.warning(err)
 
     def type_fit_branch_right(self, node, is_fit_statement):
         if is_fit_statement:
@@ -269,7 +299,7 @@ class Typechecker:
 
 
     def validate_pattern_valid_for_ty(self, pat: PatternNode | None, ty: Ty):
-        if pat is None:
+        if isinstance(pat, CatchallPatternNode):
             return True
         if not isinstance(ty, DisTy):
             self.report.error(cannot_match_pattern_to_non_dis(pat.name.location, pat.name.text, ty))
@@ -286,9 +316,13 @@ class Typechecker:
             self.report.error(err)
             return False
 
+        ok = True
         for (arg_ty, child_pattern) in zip(variant_decl.get_arg_types(), pat.args):
             arg_ty = substitute(arg_ty, ty.generic_types)
-            self.validate_pattern_valid_for_ty(child_pattern, arg_ty)
+            child_result = self.validate_pattern_valid_for_ty(child_pattern, arg_ty)
+            if not child_result:
+                ok = False
+        return ok
 
     def type_call(self, call: CallNode):
         fun_ty = self.type_expr(call.fun)
@@ -324,10 +358,11 @@ class Typechecker:
     def type_ret(self, node: RetNode):
         fun_ty = self.ctx.current_function_ty
         return_ty = SimpleType('Void') if node.expr is None else self.type_expr(node.expr)
+        if isinstance(fun_ty, ErrorTy) or isinstance(return_ty, ErrorTy):
+            return ErrorTy()
         if not is_subtype(return_ty, fun_ty.result_type):
             fun_node = self.ctx.current_function_node
             self.report.error(return_type_mismatch(node.location, return_ty, fun_ty, fun_node))
-            print(fun_ty, return_ty)
         return return_ty
 
 

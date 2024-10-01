@@ -13,6 +13,18 @@ fun f(n: Nat) -> Nat {
     };
 }
 
+dis Foo { A, B, C }
+
+// Wildcard `_` pattern can be used to fit anything
+// Fit branches are evaluated from top to bottom
+fun wildcard(x: Foo) -> Int {
+    ret fit x {
+        A => 1,
+        _ => 0
+    };
+}
+
+
 fun accept_succ(n: Nat::Succ) {}
 fun g(n: Nat) {
     // After fitting a variable it has the variant type in the branch

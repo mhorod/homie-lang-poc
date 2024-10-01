@@ -1,0 +1,45 @@
+dis Bool { T, F }
+
+
+fun f(b: Bool) -> Int {
+    ret fit b {
+        T => 1,
+        // Missing branch F => ...
+    };
+}
+
+dis Compound {
+    A(b: Bool)
+}
+
+fun g(x: Compound) -> Int {
+    ret fit x {
+        A T => 1,
+    };
+}
+
+dis CompoundCompound {
+    AA(x: Compound)
+}
+
+fun h(x: CompoundCompound) -> Int {
+    ret fit x {
+        AA (A T) => 1,
+    };
+}
+
+
+dis DNF3 {
+    A(x: Bool, y: Bool, z: Bool)
+}
+
+fun solve_dnf(x: DNF3) -> Int {
+    ret fit x {
+        // Solving DNF-tautology
+        // (x and ~y) or (~x and z) or (~x and ~z)
+        // false for x = 1, y = 1
+        A T F _ => 1,
+        A F _ T => 2,
+        A F _ F => 3,
+    };
+}

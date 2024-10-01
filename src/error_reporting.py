@@ -22,6 +22,9 @@ class ErrorReport:
     def error(self, err):
         self.errors.append(err)
 
+    def warning(self, err):
+        self.warnings.append(err)
+
     def has_errors(self):
         return len(self.errors) > 0
 

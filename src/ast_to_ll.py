@@ -69,7 +69,7 @@ def let_to_ll(let: tree.LetNode, ctx: LLContext):
 
 
 def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
-    if pattern is None:
+    if isinstance(pattern, tree.CatchallPatternNode):
         return None
     enum_def = ctx.enum_defs[ty.name]
     variant_def = enum_def.get_variant(pattern.name.text)

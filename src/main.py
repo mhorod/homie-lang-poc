@@ -29,16 +29,16 @@ def run_file(file):
         program = parsing_result.parsed
 
         ctx, report = typecheck(program)
+        print_error_report(report)
 
-        if report.has_errors():
-            print_error_report(report)
-        else:
+        if not report.has_errors():
             program = to_ll(program, ctx)
 
             if '--ll' in sys.argv:
                 print(program.pretty_print())
                 return
-            print(compile(program))
+            if '--compile' in sys.argv:
+                print(compile(program))
     else:
         for error in parsing_result.errors:
             print_error(error)

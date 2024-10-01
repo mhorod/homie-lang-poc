@@ -27,7 +27,7 @@ class Source:
         spans.append(Location(self, begin, self.line_beginnings[begin_line + 1] - 1))
         for line in range(begin_line + 1, end_line):
             spans.append(
-                Location(self, self.line_beginnings[line], self.prefix_sums[line + 1] - 1))
+                Location(self, self.line_beginnings[line], self.line_beginnings[line + 1] - 1))
         spans.append(Location(self, self.line_beginnings[end_line], end))
         return spans
 

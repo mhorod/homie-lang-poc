@@ -111,6 +111,7 @@ fun nat_to_dig(n: Nat) -> Dig {
         Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))) => Dig::Seven,
         Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero))))))) => Dig::Eight,
         Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ (Succ Zero)))))))) => Dig::Nine,
+        _ => Dig::Zero,
     };
 }
 
