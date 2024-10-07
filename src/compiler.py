@@ -1,55 +1,68 @@
 from __future__ import annotations
-from typing import *
+from typing import TypeAlias
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
 
 from typechecking.typechecker import get_builtins
 
-type Expr = Create | Fit | FunName | Call | VarAddress | ArgAddress | MemberAddress | Deref
+# Expr: TypeAlias = 'Create | Fit | FunName | Call | VarAddress | ArgAddress | MemberAddress | Deref | IntValue'
+# Statement: TypeAlias = 'Let | Return'
+# ^ unfortunately the types above got really out of sync with reality, I dont have time to fix it properly
 
-type Statement = Let | Return
+Expr: TypeAlias = 'CompilerNode'
+Statement: TypeAlias = 'CompilerNode'
+
+class CompilerNode(ABC):
+    @abstractmethod
+    def pretty_print(self, indent: int) -> str:
+        pass
+    @abstractmethod
+    def to_asm(self, ctx: AsmContext) -> str:
+        pass
 
 @dataclass
-class Noop:
-    def pretty_print(self, depth):
+class Noop(CompilerNode):
+    def pretty_print(self, indent: int) -> str:
         return ""
-    def to_asm(self, ctx):
+    def to_asm(self, ctx: AsmContext) -> str:
         return ""
 
 @dataclass
-class Block:
-    statements: List[Statement]
+class Block(CompilerNode):
+    statements: list[Statement]
 
-    def pretty_print(self, indent=1):
+    def pretty_print(self, indent: int = 1) -> str:
         if len(self.statements) == 0:
             return "{}"
         stmts = "\n".join(" " * indent + s.pretty_print(indent + 1) + ";" for s in self.statements)
         return "{" + "\n" + stmts + "\n" + " " * indent + "}"
 
-    def to_asm(self, ctx: AsmContext):
+    def to_asm(self, ctx: AsmContext) -> str:
         return "\n".join(s.to_asm(ctx) for s in self.statements)
 
 @dataclass
-class IntValue:
+class IntValue(CompilerNode):
     """
     Loads value to rax
     """
     value: int
 
-    def to_asm(self, ctx: AsmContext):
+    def to_asm(self, ctx: AsmContext) -> str:
         return f"mov rax, {self.value}"
 
-    def pretty_print(self, indent=1):
+    def pretty_print(self, indent: int = 1) -> str:
         return f"{self.value}"
 
 @dataclass
-class FitBranch:
+class FitBranch(CompilerNode):
     """checks if object on stack fits the pattern and if so, leaves content's result in rax"""
     pattern: Pattern | None
     content: Expr
 
-    def to_asm(self, ctx: AsmContext, fit_end: str):
+    def to_asm(self, ctx: AsmContext, fit_end: str = '') -> str:
+        if not fit_end:
+            raise Exception
         branch_end = ctx.unique_id("branch_end")
         if self.pattern is None:
             return f"""
@@ -66,16 +79,16 @@ class FitBranch:
                 {branch_end}:
             """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"{"_" if self.pattern is None else self.pattern.pretty_print()} => {self.content.pretty_print(depth + 1)}"
 
 @dataclass
-class Fit:
+class Fit(CompilerNode):
     """leaves result in rax"""
     obj: Expr
-    branches: List[FitBranch]
+    branches: list[FitBranch]
 
-    def to_asm(self, ctx: AsmContext):
+    def to_asm(self, ctx: AsmContext) -> str:
         fit_end = ctx.unique_id("fit_end")
         return f"""
             {self.obj.to_asm(ctx)}
@@ -85,17 +98,17 @@ class Fit:
             add rsp, 8
         """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"fit {self.obj.pretty_print(depth + 1)} {{{br(depth)}{br(depth).join(b.pretty_print(depth + 1) + "," for b in self.branches)} {br(depth - 1)}}}"
 
 
 
 
 @dataclass
-class Pattern:
+class Pattern(CompilerNode):
     """takes object in rax, destroys it. iff pattern matches object ZF is set"""
     type_id: int
-    children: List[Pattern | None]
+    children: list[Pattern | None]
 
     def to_asm(self, ctx: AsmContext) -> str:
         match_start = ctx.unique_id("match")
@@ -138,17 +151,17 @@ class Pattern:
                 pop rax
             {after_match_end}:
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return ' '.join([f"<{self.type_id}>"] + ['_' if c is None else c.pretty_print(depth + 1) for c in self.children])
 
-def br(depth):
+def br(depth: int) -> str:
     return "\n" + (depth + 1) * " "
 
 @dataclass
-class Fun:
+class Fun(CompilerNode):
     name: str
     local_vars: int
-    content: List[Statement]
+    content: list[Statement]
 
     def to_asm(self, ctx: AsmContext) -> str:
         ctx.return_token = ctx.unique_id(f"{self.name}_ret")
@@ -162,12 +175,12 @@ class Fun:
             ret
         """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"fun {self.name}[{self.local_vars}] {{{br(depth)}{br(depth).join(s.pretty_print(depth + 1) + ";" for s in self.content)}\n}}"
 
 
 @dataclass
-class Return:
+class Return(CompilerNode):
     content: Expr
 
     def to_asm(self, ctx: AsmContext) -> str:
@@ -177,14 +190,14 @@ class Return:
             ret
         """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"ret {self.content.pretty_print(depth + 1)}"
 
 @dataclass
-class Call:
+class Call(CompilerNode):
     """calls function and leaves result in rax"""
     function: Expr
-    args: List[Expr]
+    args: list[Expr]
 
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
@@ -200,11 +213,11 @@ class Call:
             pop rbp
         """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"({self.function.pretty_print(depth + 1)} {' '.join(arg.pretty_print(depth + 1) for arg in self.args)})"
 
 @dataclass
-class Let:
+class Let(CompilerNode):
     var: int
     value: Expr
 
@@ -214,22 +227,22 @@ class Let:
             mov [rbp - {8 + 8 * self.var}], rax
         """
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"let ({self.var}) = {self.value.pretty_print(depth + 1)}"
 
 @dataclass
-class FunName:
+class FunName(CompilerNode):
     name: str
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
             mov rax, {self.name}
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return self.name
 
 @dataclass
-class Program:
-    functions: List[Fun]
+class Program(CompilerNode):
+    functions: list[Fun]
     def to_asm(self, ctx: AsmContext) -> str:
         result = f"""
             section .text
@@ -244,31 +257,31 @@ class Program:
         """
         return '\n'.join(l for l in (l.strip() for l in result.split('\n')) if l != '')
 
-    def pretty_print(self) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return '\n\n'.join(f.pretty_print(0) for f in self.functions)
 
 @dataclass
-class ArgAddress:
+class ArgAddress(CompilerNode):
     i: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
             lea rax, [rbp + {8 + 8 * self.i}]
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"&[{self.i}]"
 
 @dataclass
-class VarAddress:
+class VarAddress(CompilerNode):
     var: int
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
             lea rax, [rbp - {8 + 8 * self.var}]
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"&({self.var})"
 
 @dataclass
-class MemberAddress:
+class MemberAddress(CompilerNode):
     """returns ith member field address"""
     obj: Expr
     i: int
@@ -278,23 +291,23 @@ class MemberAddress:
             {get_addr_from_rax()}
             add rax, {8 * self.i}
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"&({self.obj.pretty_print(depth)}).{self.i}"
 
 @dataclass
-class Deref:
+class Deref(CompilerNode):
     address: Expr
     def to_asm(self, ctx: AsmContext) -> str:
         return f"""
             {self.address.to_asm(ctx)}
             mov rax, [rax]
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         s = self.address.pretty_print(depth)
         return s[1:] if isinstance(self.address, (ArgAddress, VarAddress, MemberAddress)) else '*' + s
 
 @dataclass
-class Assign:
+class Assign(CompilerNode):
     """assigns *var = obj """
     var: Expr
     obj: Expr
@@ -306,14 +319,14 @@ class Assign:
             pop rcx
             mov [rcx], rax
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return self.var.pretty_print(depth) + " = " + self.obj.pretty_print(depth)
 
 @dataclass
-class Print:
+class Print(CompilerNode):
     value: str
 
-    def to_asm(self, ctx: AsmContext):
+    def to_asm(self, ctx: AsmContext) -> str:
         str_label = ctx.unique_id("str")
         after_str_label = ctx.unique_id("after_str")
         return f"""
@@ -327,19 +340,19 @@ class Print:
             mov rdx, {len(self.value.encode())}
             syscall
         """
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"wrt \"{self.value.replace("\n", "\\n").replace("\t", "\\t")}\""
 
-def constructor_name(enum_name: str, variant_id: int):
+def constructor_name(enum_name: str, variant_id: int) -> str:
     return f"__{enum_name}__{variant_id}"
 
 @dataclass
-class Create:
+class Create(CompilerNode):
     """creates object and puts it in rax"""
     type_id: int
-    children: List[Expr]
+    children: list[Expr]
 
-    def to_asm(self, ctx: AsmContext):
+    def to_asm(self, ctx: AsmContext) -> str:
         if len(self.children) == 0:
             return Call(FunName("_make_obj0"), [IntValue(self.type_id)] + self.children).to_asm(ctx)
 
@@ -356,7 +369,7 @@ class Create:
 
         raise Exception("Object too big to allocate.")
 
-    def pretty_print(self, depth = 0) -> str:
+    def pretty_print(self, depth: int = 0) -> str:
         return f"({' '.join([f"<{self.type_id}>"] + [child.pretty_print(depth + 1) for child in self.children])})"
 
 def constructor(enum_name: str, variant_id: int, no_args: int) -> Fun:
@@ -378,7 +391,7 @@ class AsmContext:
     return_token: str
     var_count: int
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._id = 0
 
     def unique_id(self, name: str) -> str:

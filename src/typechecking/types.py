@@ -1,9 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Tuple
-from tree import TypeNode
+from typing import TypeAlias
 
-type Ty = WildcardTy | TyVar | FunTy | DisTy | ErrorTy | None | SimpleType
+Ty: TypeAlias = 'WildcardTy | TyVar | FunTy | DisTy | ErrorTy | None | SimpleType'
 
 @dataclass
 class WildcardTy:
@@ -16,14 +15,14 @@ class TyVar:
     index: int
     name: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 @dataclass
 class SimpleType:
     name: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 class ErrorTy:
@@ -37,29 +36,29 @@ class FunctionDeclaration:
 @dataclass
 class DisDeclaration:
     generic_arg_count: int
-    variants: List[VariantDeclaration]
+    variants: list[VariantDeclaration]
 
-    def has_variant(self, name):
+    def has_variant(self, name: str) -> bool:
         return any(variant.name == name for variant in self.variants)
 
-    def get_variant(self, name):
+    def get_variant(self, name: str) -> VariantDeclaration:
         return next(variant for variant in self.variants if variant.name == name)
 
-    def get_variant_id(self, name):
+    def get_variant_id(self, name: str) -> int:
         return next(i for (i, variant) in enumerate(self.variants) if variant.name == name)
 
 @dataclass
 class VariantDeclaration:
     name: str
-    args: List[Arg]
+    args: list[Arg]
 
-    def get_arg_count(self):
+    def get_arg_count(self) -> int:
         return len(self.args)
 
-    def get_arg_types(self):
+    def get_arg_types(self) -> list[Ty]:
         return [arg.ty for arg in self.args]
 
-    def has_arg(self, name: str):
+    def has_arg(self, name: str) -> bool:
         return any(arg.name == name for arg in self.args)
 
     def get_arg(self, name: str):
@@ -75,7 +74,7 @@ class Arg:
 
 @dataclass
 class FunTy:
-    arg_types: List[Ty]
+    arg_types: list[Ty]
     result_type: Ty
 
     def __str__(self) -> str:
@@ -90,7 +89,7 @@ class FunTy:
 @dataclass(frozen=True)
 class TyPattern:
     name: str
-    children: Tuple[TyPattern | CatchallPattern] | None
+    children: tuple[TyPattern | CatchallPattern] | None
 
     def __str__(self):
         children = ""
@@ -121,7 +120,7 @@ class CatchallPattern:
 @dataclass
 class DisTy:
     name: str
-    generic_types: List[Ty]
+    generic_types: list[Ty]
     pattern: TyPattern
 
     def __str__(self):
@@ -132,7 +131,7 @@ class DisTy:
         return f"{self.name}{generics}{pattern}"
 
 
-def substitute(ty: Ty, subst: List[Ty]):
+def substitute(ty: Ty, subst: list[Ty]):
     if isinstance(ty, FunTy):
         arg_types = [substitute(arg, subst) for arg in ty.arg_types]
         result_type = substitute(ty.result_type, subst)

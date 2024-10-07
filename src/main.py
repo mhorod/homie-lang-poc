@@ -9,7 +9,7 @@ from parsing.combinators import Result, ResultStatus
 from error_reporting import print_error, print_error_report
 import sys
 
-def run_file(file):
+def run_file(file: str) -> None:
     with open(file, "r") as f:
         source = Source(file, f.read())
 

@@ -12,7 +12,7 @@ class LLContext:
     enum_defs: dict[str, DisDeclaration]
 
 
-def to_ll(program: tree.ProgramNode, ctx: TypingContext):
+def to_ll(program: tree.ProgramNode, ctx: TypingContext) -> compiler.Program:
     ll = []
     for item in program.items:
         if isinstance(item, tree.FunNode):
@@ -23,7 +23,7 @@ def to_ll(program: tree.ProgramNode, ctx: TypingContext):
     return compiler.Program(ll)
 
 
-def var_to_ll(var: tree.VarNode, ctx: LLContext):
+def var_to_ll(var: tree.VarNode, ctx: LLContext) -> compiler.Expr:
     name = var.name.text
     if name in ctx.var_to_id:
         return compiler.Deref(compiler.VarAddress(ctx.var_to_id[name]))
@@ -32,7 +32,7 @@ def var_to_ll(var: tree.VarNode, ctx: LLContext):
     else:
         return compiler.FunName(var.name.text)
 
-def var_adress_to_ll(var: tree.VarNode, ctx: LLContext):
+def var_adress_to_ll(var: tree.VarNode, ctx: LLContext) -> compiler.Expr:
     name = var.name.text
     if name in ctx.var_to_id:
         return compiler.VarAddress(ctx.var_to_id[name])
@@ -41,34 +41,34 @@ def var_adress_to_ll(var: tree.VarNode, ctx: LLContext):
     else:
         raise Exception(f"Not addressable {var}")
 
-def fun_inst_to_ll(fun_inst: tree.FunInstNode, ctx: LLContext):
+def fun_inst_to_ll(fun_inst: tree.FunInstNode, ctx: LLContext) -> compiler.FunName:
     return compiler.FunName(fun_inst.name.text)
 
-def call_to_ll(call: tree.CallNode, ctx: LLContext):
+def call_to_ll(call: tree.CallNode, ctx: LLContext) -> compiler.Call:
     args = [expr_to_ll(arg, ctx) for arg in call.arguments]
     fun = expr_to_ll(call.fun, ctx)
     return compiler.Call(fun, args)
 
-def member_address_to_ll(member: tree.MemberNode, ctx: LLContext):
+def member_address_to_ll(member: tree.MemberNode, ctx: LLContext) -> compiler.MemberAddress:
     enum_def = ctx.enum_defs[member.expr.ty.name]
     variant_def = enum_def.get_variant(member.expr.ty.pattern.name)
     arg_id = variant_def.arg_index(member.member_name.text)
     return compiler.MemberAddress(expr_to_ll(member.expr, ctx), arg_id)
 
-def member_to_ll(member: tree.MemberNode, ctx: LLContext):
+def member_to_ll(member: tree.MemberNode, ctx: LLContext) -> compiler.Deref:
     return compiler.Deref(member_address_to_ll(member, ctx))
 
-def ret_to_ll(ret: tree.RetNode, ctx: LLContext):
+def ret_to_ll(ret: tree.RetNode, ctx: LLContext) -> compiler.Return:
     expr = compiler.Noop() if ret.expr is None else expr_to_ll(ret.expr, ctx)
     return compiler.Return(expr)
 
 
-def let_to_ll(let: tree.LetNode, ctx: LLContext):
+def let_to_ll(let: tree.LetNode, ctx: LLContext) -> compiler.Let:
     var_id = ctx.var_to_id[let.name.text]
     return compiler.Let(var_id, expr_to_ll(let.value, ctx))
 
 
-def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
+def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext) -> compiler.Pattern:
     if isinstance(pattern, tree.CatchallPatternNode):
         return None
     enum_def = ctx.enum_defs[ty.name]
@@ -84,7 +84,7 @@ def pattern_to_ll(ty: DisTy, pattern: tree.Pattern | None, ctx: LLContext):
     return compiler.Pattern(variant_id, children)
 
 
-def fit_to_ll(fit: tree.FitExprNode | tree.FitStatementNode, ctx: LLContext):
+def fit_to_ll(fit: tree.FitExprNode | tree.FitStatementNode, ctx: LLContext) -> compiler.Fit:
     obj = expr_to_ll(fit.expr, ctx)
     children = [compiler.FitBranch (
         pattern_to_ll(fit.expr.ty, branch.left, ctx),
@@ -92,18 +92,18 @@ def fit_to_ll(fit: tree.FitExprNode | tree.FitStatementNode, ctx: LLContext):
     ) for branch in fit.branches]
     return compiler.Fit(obj, children)
 
-def enum_cons_to_ll(cons: tree.DisConstructorNode, ctx:LLContext):
+def enum_cons_to_ll(cons: tree.DisConstructorNode, ctx: LLContext) -> compiler.Expr:
     enum_def = ctx.enum_defs[cons.name.text]
     if enum_def.get_variant(cons.variant_name.text).get_arg_count() == 0:
         return compiler.Create(enum_def.get_variant_id(cons.variant_name.text), [])
     else:
         return compiler.FunName(compiler.constructor_name(cons.name.text, enum_def.get_variant_id(cons.variant_name.text)))
 
-def write_to_ll(write: tree.Write, ctx: LLContext):
+def write_to_ll(write: tree.Write, ctx: LLContext) -> compiler.Print:
     return compiler.Print(write.value)
 
 
-def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
+def expr_to_ll(expr: tree.ExprNode, ctx: LLContext) -> compiler.CompilerNode:
     if isinstance(expr, tree.VarNode):
         return var_to_ll(expr, ctx)
     elif isinstance(expr, tree.FunInstNode):
@@ -131,7 +131,7 @@ def expr_to_ll(expr: tree.ExprNode, ctx: LLContext):
     else:
         raise Exception(f"Unexpected tree node: {expr}")
 
-def assign_to_ll(assign: tree.AssignNode, ty_ctx: TypingContext):
+def assign_to_ll(assign: tree.AssignNode, ty_ctx: TypingContext) -> compiler.Assign:
     if isinstance(assign.var, tree.VarNode):
         lhs = var_adress_to_ll(assign.var, ty_ctx)
     elif isinstance(assign.var, tree.MemberNode):
@@ -140,7 +140,7 @@ def assign_to_ll(assign: tree.AssignNode, ty_ctx: TypingContext):
         raise Exception(f"Unexpected assignment: {assign}")
     return compiler.Assign(lhs, expr_to_ll(assign.expr, ty_ctx))
 
-def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext):
+def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext) -> compiler.Fun:
     local_var_count = 0
     var_to_id = {}
 
@@ -157,9 +157,9 @@ def fun_to_ll(fun: tree.FunNode, ty_ctx: TypingContext):
     return compiler.Fun(fun.name.text, local_var_count, body)
 
 
-def value_to_ll(val: tree.ValueNode, ty_ctx: TypingContext):
-    return compiler.IntValue(val.token.text)
+def value_to_ll(val: tree.ValueNode, ty_ctx: TypingContext) -> compiler.IntValue:
+    return compiler.IntValue(int(val.token.text))
 
 
-def block_to_ll(block: tree.BlockNode, ctx: LLContext):
+def block_to_ll(block: tree.BlockNode, ctx: LLContext) -> compiler.Block:
     return compiler.Block([expr_to_ll(stmt, ctx) for stmt in block.statements])

@@ -10,7 +10,7 @@ class Source:
            if c == '\n':
                self.line_beginnings.append(i + 1)
 
-    def get_line_and_column(self, index):
+    def get_line_and_column(self, index: int):
         line = 0
         while line + 1 < len(self.line_beginnings) and self.line_beginnings[line + 1] <= index:
            line += 1

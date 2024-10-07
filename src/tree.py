@@ -3,10 +3,11 @@ from typing import *
 
 from dataclasses import dataclass
 from enum import Enum, auto
+import ast
 
 from source import Location
 from tokens import Token
-import ast
+from typechecking.types import Ty
 
 def buildable(cls):
     fields = cls.__annotations__
@@ -30,12 +31,14 @@ def buildable(cls):
     cls.Builder = Builder
     return cls
 
-
-
-type TypeNode = DisTypeNode | FunctionTypeNode | WildcardTypeNode | VoidTypeNode
+TypeNode: TypeAlias = 'DisTypeNode | FunctionTypeNode | WildcardTypeNode | VoidTypeNode'
+AssignableNode: TypeAlias = 'VarNode | MemberNode'
+ExprNode: TypeAlias = 'FitExprNode | VarNode | ValueNode | CallNode | AssignNode'
+StatementNode: TypeAlias = 'ExprNode | RetNode | BlockNode | FitStatementNode'
 
 class Node:
     location: Location
+    ty: Ty | None
 
 @buildable
 @dataclass
@@ -61,34 +64,32 @@ class Write:
 @buildable
 @dataclass
 class GenericParamsNode(Node):
-    params: List[Token]
+    params: list[Token]
 
 @buildable
 @dataclass
 class DisTypeNode(Node):
     name: Token
-    generics: List[Type]
+    generics: list[Type]
 
 
 @buildable
 @dataclass
 class DisConstructorNode(Node):
-    name: str
-    generics: List[Type]
-    variant_name: str
+    name: Token
+    generics: list[Type]
+    variant_name: Token
 
 @buildable
 @dataclass
 class VarNode(Node):
-    name: str
+    name: Token
 
 @buildable
 @dataclass
 class MemberNode(Node):
     expr: ExprNode
     member_name: Token
-
-type AssignableNode = VarNode | MemberNode
 
 @buildable
 @dataclass
@@ -99,14 +100,14 @@ class AssignNode(Node):
 @buildable
 @dataclass
 class FunctionTypeNode:
-    args: List[Type]
+    args: list[Type]
     ret: Type
 
 @buildable
 @dataclass
 class ArgNode:
     location: Location
-    name: str
+    name: Token
     type: Type
 
 class Associativity(Enum):
@@ -126,7 +127,7 @@ class OperatorNode(Node):
 class DisVariantNode:
     location: Location
     name: Token
-    args: List[ArgNode]
+    args: list[ArgNode]
 
 
 @buildable
@@ -134,7 +135,7 @@ class DisVariantNode:
 class DisNode(Node):
     name: Token
     generics: GenericParamsNode
-    variants: List[DisVariantNode]
+    variants: list[DisVariantNode]
 
     def get_variant_node(self, name: str):
         for v in self.variants:
@@ -145,7 +146,7 @@ class DisNode(Node):
 @dataclass
 class PatternNode(Node):
     name: Token
-    args: List[Pattern | ValueNode | WildcardPatternNode]
+    args: list[Pattern | ValueNode | WildcardPatternNode]
 
 @buildable
 @dataclass
@@ -164,18 +165,14 @@ class FitBranchNode(Node):
 class FitExprNode(Node):
     location: Location
     expr: ExprNode
-    branches: List[FitBranchNode]
+    branches: list[FitBranchNode]
 
 @buildable
 @dataclass
 class FitStatementNode(Node):
     location: Location
     expr: ExprNode
-    branches: List[FitBranchNode]
-
-
-type ExprNode = FitExprNode | VarNode | ValueNode | CallNode | AssignNode
-type StatementNode = ExprNode | RetNode | BlockNode | FitStatementNode
+    branches: list[FitBranchNode]
 
 @buildable
 @dataclass
@@ -185,7 +182,7 @@ class RetNode(Node):
 @buildable
 @dataclass
 class BlockNode(Node):
-    statements: List[StatementNode]
+    statements: list[StatementNode]
 
 
 @buildable
@@ -202,9 +199,9 @@ class ValueNode(Node):
 @buildable
 @dataclass
 class FunNode(Node):
-    name: str
+    name: Token
     generics: GenericParamsNode
-    args: List[ArgNode]
+    args: list[ArgNode]
     ret: Type
     body: BlockNode
 
@@ -213,23 +210,23 @@ class FunNode(Node):
 @dataclass
 class FunInstNode(Node):
     name: Token
-    generics: List[Type]
+    generics: list[Type]
 
 
 @buildable
 @dataclass
 class CallNode(Node):
     fun: ExprNode | DisConstructorNode
-    arguments: List[ExprNode]
+    arguments: list[ExprNode]
 
 
 @buildable
 @dataclass
 class TupleLikeNode:
-    parts: List[ExprNode]
+    parts: list[ExprNode]
 
 
 @buildable
 @dataclass
 class FunctionTypeArgsNode:
-    parts: List[ExprNode]
+    parts: list[ExprNode]

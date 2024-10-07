@@ -5,7 +5,7 @@ from error_reporting import *
 
 from parsing.expressions import TOKENS_BUILTINS_MAP
 
-from tokens import NumberKind, StringKind
+from tokens import NumberKind, StringKind, Token
 
 from typechecking.types import *
 from typechecking.subtyping import *
@@ -14,14 +14,14 @@ from typechecking.convert import *
 from typechecking.errors import *
 from typechecking.exhaustiveness import *
 
-def get_simple_types():
+def get_simple_types() -> dict[str, SimpleType]:
     return {
         'Int' : SimpleType('Int'),
         'String': SimpleType('String'),
         'Void': SimpleType('Void')
     }
 
-def get_builtins():
+def get_builtins() -> dict[str, FunctionDeclaration]:
     INT = SimpleType('Int')
     TY = TyVar(0, 'T')
     return {
@@ -30,7 +30,7 @@ def get_builtins():
         '__builtin_operator_less' : FunctionDeclaration(1, FunTy([INT, INT, TY, TY], TY))
     }
 
-def typecheck(program):
+def typecheck(program: ProgramNode) -> tuple[TypingContext, ErrorReport]:
     typechecker = Typechecker(get_simple_types(), get_builtins())
     typechecker.typecheck(program)
     return typechecker.ctx, typechecker.report
@@ -444,7 +444,7 @@ class Typechecker:
         return len(names) == len(generics.params)
 
     def report_duplicated_generics(self, generics: GenericParamsNode):
-        names = {}
+        names: dict[str, Token] = {}
         for name in generics.params:
             if name.text in names:
                 self.report.error(duplicated_generics(name, names[name.text]))
@@ -452,7 +452,7 @@ class Typechecker:
                 names[name.text] = name
 
     def find_fun_nodes(self, program: ProgramNode) -> Dict[str, List[FunNode]]:
-        fun_nodes = {}
+        fun_nodes: dict[str, list[FunNode]] = {}
         for item in program.items:
             if isinstance(item, FunNode):
                 if not self.unique_generics(item.generics):
