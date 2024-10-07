@@ -23,9 +23,10 @@ for test in tqdm(listdir('examples/correct')):
 for test in tqdm(listdir('examples/incorrect')):
     if test in ['member_in_parens.hom']:
         continue
-    comp_code, _ = getstatusoutput(f'bash run.sh examples/incorrect/{test}')
-    if comp_code == 0:
-        print(f'Compilatorion of {test} succeeded')
+
+    comp_code, out = getstatusoutput(f'python3 src/main.py examples/incorrect/{test} --flip-error-code')
+    if comp_code:
+        print(f'Compilation of {test} crashed\n{out}')
         exit(1)
 
 print('OK')

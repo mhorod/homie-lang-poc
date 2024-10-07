@@ -1,7 +1,6 @@
 from tree import *
 from error_reporting import Message, Error
 from builtin import *
-from typechecking.errors import *
 from validating.errors import *
 
 from tokens import Token, NameKind
@@ -232,7 +231,7 @@ class Validator:
             self.validate(item)
 
     def validate_assign(self, node: AssignNode, is_top_expr):
-        if not is_top_expr:
+        if not is_top_expr:# TODO to error
             msg = Message(node.location, f"Assignment can only be used in top level expressions")
             self.errors.append(Error(msg))
         if not isinstance(node.var, (VarNode, MemberNode)):
