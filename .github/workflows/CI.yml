@@ -15,4 +15,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run tests
         run: python3 run_tests.py
+      - name: Run mypy
+        run: mypy --strict src/main.py
     timeout-minutes: 2
